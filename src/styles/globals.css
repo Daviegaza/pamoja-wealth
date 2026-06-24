@@ -1,0 +1,263 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== Border Colors ===== */
+* {
+  border-color: theme("colors.gray.200");
+}
+.dark * {
+  border-color: theme("colors.gray.800");
+}
+
+/* ===== Smooth Scrolling & Anti-aliasing ===== */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 antialiased font-sans transition-colors duration-300;
+}
+
+.dark body {
+  @apply bg-neutral-950 text-gray-100;
+}
+
+/* ===== Selection ===== */
+::selection {
+  @apply bg-brand-500/20 text-brand-900;
+}
+.dark ::selection {
+  @apply bg-brand-400/20 text-brand-100;
+}
+
+/* ===== Scrollbar (compact, elegant) ===== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-neutral-700 rounded-full;
+  transition: background-color 0.2s;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-neutral-600;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ===== Focus Ring (accessible, brand-colored) ===== */
+.focus-ring {
+  @apply outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-neutral-950 transition-shadow;
+}
+
+/* ===== Glass Variants ===== */
+.glass {
+  @apply bg-white/70 dark:bg-white/[0.04] backdrop-blur-xl border border-gray-200/60 dark:border-white/[0.06];
+}
+.glass-solid {
+  @apply bg-white/85 dark:bg-neutral-900/85 backdrop-blur-xl border border-gray-200/60 dark:border-white/[0.06];
+}
+.glass-dark {
+  @apply bg-gray-900/80 backdrop-blur-xl border border-white/[0.06];
+}
+.glass-premium {
+  @apply bg-white/70 dark:bg-white/[0.03] backdrop-blur-2xl border border-white/20 dark:border-white/[0.05] shadow-soft-lg;
+}
+
+/* ===== Card Variants ===== */
+.card-base {
+  @apply rounded-2xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.03] shadow-soft transition-all duration-200;
+}
+.card-hover {
+  @apply card-base hover:shadow-soft-lg hover:-translate-y-0.5;
+}
+.card-glass {
+  @apply glass-premium rounded-2xl;
+}
+.card-gradient {
+  @apply rounded-2xl border border-transparent bg-gradient-to-br from-white to-gray-50/80 dark:from-neutral-900 dark:to-neutral-950 shadow-soft;
+}
+.card-border-accent {
+  @apply card-base border-l-4 border-l-brand-500;
+}
+
+/* ===== Text Gradients ===== */
+.text-gradient {
+  @apply bg-gradient-to-r from-brand-600 via-brand-500 to-emerald-400 bg-clip-text text-transparent;
+}
+.text-gradient-premium {
+  @apply bg-gradient-to-r from-brand-600 via-brand-400 to-accent-400 bg-clip-text text-transparent;
+}
+.text-gradient-hero {
+  @apply bg-gradient-to-br from-gray-900 via-brand-700 to-brand-500 bg-clip-text text-transparent dark:from-white dark:via-brand-300 dark:to-brand-400;
+}
+.text-gradient-muted {
+  @apply bg-gradient-to-r from-gray-600 to-gray-400 bg-clip-text text-transparent dark:from-gray-400 dark:to-gray-600;
+}
+
+/* ===== Skeleton Loaders ===== */
+.skeleton {
+  @apply bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 dark:from-neutral-800 dark:via-neutral-750 dark:to-neutral-800 bg-[length:1000px_100%] animate-shimmer rounded-lg;
+}
+.skeleton-pulse {
+  @apply bg-gray-200 dark:bg-neutral-800 animate-pulse-soft rounded-lg;
+}
+
+/* ===== Glow Effects ===== */
+.glow {
+  @apply dark:shadow-[0_0_30px_-5px_rgba(34,197,94,0.15)];
+}
+.glow-sm {
+  @apply dark:shadow-[0_0_15px_-3px_rgba(34,197,94,0.1)];
+}
+.glow-lg {
+  @apply dark:shadow-[0_0_50px_-10px_rgba(34,197,94,0.2)];
+}
+
+/* ===== Gradient Border Technique (simplified for performance) ===== */
+.gradient-border {
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  background-origin: padding-box;
+}
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.25), rgba(20, 184, 166, 0.12));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ===== Gradient Icon Backgrounds ===== */
+.icon-gradient-brand {
+  @apply bg-gradient-to-br from-brand-500 to-brand-700 text-white;
+}
+.icon-gradient-emerald {
+  @apply bg-gradient-to-br from-emerald-400 to-emerald-600 text-white;
+}
+.icon-gradient-blue {
+  @apply bg-gradient-to-br from-blue-400 to-blue-600 text-white;
+}
+.icon-gradient-purple {
+  @apply bg-gradient-to-br from-purple-400 to-purple-600 text-white;
+}
+.icon-gradient-amber {
+  @apply bg-gradient-to-br from-amber-400 to-amber-600 text-white;
+}
+.icon-gradient-rose {
+  @apply bg-gradient-to-br from-rose-400 to-rose-600 text-white;
+}
+.icon-gradient-cyan {
+  @apply bg-gradient-to-br from-cyan-400 to-cyan-600 text-white;
+}
+.icon-gradient-accent {
+  @apply bg-gradient-to-br from-accent-500 to-accent-700 text-white;
+}
+
+/* ===== Decorative Background Gradients ===== */
+.bg-mesh {
+  background-image:
+    radial-gradient(at 0% 0%, rgba(34, 197, 94, 0.04) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(20, 184, 166, 0.04) 0px, transparent 50%);
+}
+.dark .bg-mesh {
+  background-image:
+    radial-gradient(at 0% 0%, rgba(34, 197, 94, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(20, 184, 166, 0.08) 0px, transparent 50%);
+}
+
+.bg-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+}
+
+/* ===== Animate-in (scroll-triggered, use with Intersection Observer) ===== */
+.animate-in {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+.animate-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ===== Animated Gradient Border (pseudo-element technique) ===== */
+.animated-border {
+  position: relative;
+  overflow: hidden;
+}
+.animated-border::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    60deg,
+    rgba(34, 197, 94, 0.4),
+    rgba(20, 184, 166, 0.4),
+    rgba(34, 197, 94, 0.1),
+    rgba(20, 184, 166, 0.4),
+    rgba(34, 197, 94, 0.4)
+  );
+  background-size: 300% 300%;
+  animation: gradient-shift 6s ease infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ===== Hover Lift Effect ===== */
+.hover-lift {
+  @apply transition-all duration-300;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  @apply shadow-soft-lg;
+}
+
+/* ===== Stripe Progress Bar ===== */
+@keyframes progress-stripe {
+  0% { background-position: 0 0; }
+  100% { background-position: 40px 0; }
+}
+.progress-stripe {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.15) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 40px 40px;
+  animation: progress-stripe 1s linear infinite;
+}
+
+/* ===== Safe Area (mobile bottom padding for notched devices) ===== */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ===== Reduced motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,45 @@
+import { Link } from "react-router-dom";
+import { Plus, UserPlus } from "lucide-react";
+import { ChamaCard } from "@/components/cards/ChamaCard";
+import { Button } from "@/components/ui/Button";
+import { SearchInput } from "@/components/common/SearchInput";
+import { Pagination } from "@/components/common/Pagination";
+import { EmptyState } from "@/components/common/EmptyState";
+import { useChamaStore } from "@/stores/chamaStore";
+import { useSearch } from "@/hooks/useSearch";
+import { usePagination } from "@/hooks/usePagination";
+import { Building2 } from "lucide-react";
+
+export default function MyChamasPage() {
+  const chamas = useChamaStore((s) => s.chamas);
+  const { query, setQuery, results } = useSearch(chamas, ["name", "location", "category"]);
+  const { page, totalPages, paginated, goToPage } = usePagination(results, 9);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Chamas</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{chamas.length} chamas across the platform</p>
+        </div>
+        <div className="flex gap-3">
+          <Link to="/chamas/join"><Button variant="outline" leftIcon={<UserPlus className="h-4 w-4" />}>Join Chama</Button></Link>
+          <Link to="/chamas/create"><Button leftIcon={<Plus className="h-4 w-4" />}>Create Chama</Button></Link>
+        </div>
+      </div>
+
+      <SearchInput value={query} onChange={setQuery} placeholder="Search chamas by name, location..." />
+
+      {paginated.length === 0 ? (
+        <EmptyState icon={Building2} title="No chamas found" description="Try adjusting your search or create a new chama." />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {paginated.map((chama) => <ChamaCard key={chama.id} chama={chama} />)}
+          </div>
+          <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} />
+        </>
+      )}
+    </div>
+  );
+}
