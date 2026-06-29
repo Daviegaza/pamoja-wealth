@@ -1,8 +1,10 @@
+import { ArrowLeftRight } from "lucide-react";
 import { DataTable, type Column } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Select } from "@/components/ui/Select";
 import { Pagination } from "@/components/common/Pagination";
+import { EmptyState } from "@/components/common/EmptyState";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useSearch } from "@/hooks/useSearch";
 import { useFilter } from "@/hooks/useFilter";
@@ -10,6 +12,7 @@ import { useSort } from "@/hooks/useSort";
 import { usePagination } from "@/hooks/usePagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Transaction } from "@/types";
+import { useChamaStore } from "@/stores/chamaStore";
 
 const statusVariant: Record<Transaction["status"], "success" | "warning" | "danger" | "default"> = {
   completed: "success", pending: "warning", failed: "danger", reversed: "default",
@@ -17,7 +20,11 @@ const statusVariant: Record<Transaction["status"], "success" | "warning" | "dang
 
 export default function TransactionsPage() {
   const transactions = useTransactions();
-  const { query, setQuery, results: searched } = useSearch(transactions, ["reference", "description"]);
+  const activeChamaId = useChamaStore((s) => s.activeChamaId);
+  const chamas = useChamaStore((s) => s.chamas);
+  const activeChama = chamas.find((c) => c.id === activeChamaId);
+  const displayTxns = activeChamaId ? transactions.filter((t) => t.chamaId === activeChamaId) : transactions;
+  const { query, setQuery, results: searched } = useSearch(displayTxns, ["reference", "description"]);
   const { value, setValue, results: filtered } = useFilter(searched, "type");
   const { sorted, sortKey, direction, toggleSort } = useSort(filtered, "date");
   const { page, totalPages, paginated, goToPage } = usePagination(sorted, 12);
@@ -35,7 +42,7 @@ export default function TransactionsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Transactions</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{transactions.length.toLocaleString()} transactions recorded platform-wide</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{displayTxns.length.toLocaleString()} transactions in {activeChama?.name ?? "All Chamas"}</p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
@@ -53,7 +60,11 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      <DataTable data={paginated} columns={columns} keyExtractor={(t) => t.id} sortKey={sortKey} sortDirection={direction} onSort={toggleSort} />
+      {paginated.length === 0 ? (
+        <EmptyState icon={ArrowLeftRight} title="No transactions" description="Transactions will appear here once you start contributing." />
+      ) : (
+        <DataTable data={paginated} columns={columns} keyExtractor={(t) => t.id} sortKey={sortKey} sortDirection={direction} onSort={toggleSort} />
+      )}
       <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} />
     </div>
   );

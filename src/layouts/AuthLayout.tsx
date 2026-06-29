@@ -3,9 +3,9 @@ import { motion } from "framer-motion";
 import { ShieldCheck, TrendingUp, Users, Sparkles } from "lucide-react";
 
 const TRUST_ITEMS = [
-  { icon: Users, text: "Trusted by 1,000+ active members" },
-  { icon: TrendingUp, text: "KES 2.4B+ in collective wealth managed" },
-  { icon: ShieldCheck, text: "Bank-grade security & encryption" },
+  { icon: Users, text: "Built for 1,000+ chama members" },
+  { icon: TrendingUp, text: "KES 2.4B+ tracked (simulated portfolio)" },
+  { icon: ShieldCheck, text: "Encrypted & secure platform" },
   { icon: Sparkles, text: "AI-powered financial insights" },
 ];
 

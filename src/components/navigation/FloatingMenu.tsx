@@ -7,7 +7,7 @@ export function FloatingMenu() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+    <div className="fixed bottom-20 lg:bottom-6 right-6 z-50 flex flex-col items-end gap-3">
       <AnimatePresence>
         {open && (
           <motion.div
@@ -41,6 +41,7 @@ export function FloatingMenu() {
 
       <button
         onClick={() => setOpen(!open)}
+        aria-label={open ? "Close quick actions" : "Open quick actions"}
         className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-brand-600 to-brand-500 text-white shadow-glow-lg hover:shadow-glow-xl hover:from-brand-700 hover:to-brand-600 focus-ring transition-all duration-200 active:scale-[0.95]"
       >
         <motion.div

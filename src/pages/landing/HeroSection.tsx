@@ -100,7 +100,7 @@ export function HeroSection() {
               Start Free — It Takes 2 Minutes
             </Button>
           </Link>
-          <a href="#features">
+          <a href="#how-it-works">
             <Button size="xl" variant="outline" leftIcon={<Play className="h-5 w-5" />}>
               See How It Works
             </Button>

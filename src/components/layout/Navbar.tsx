@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from "react";
-import { Bell, Menu, Moon, Plus, Search, Sun, CreditCard, UserPlus, Vote, Wallet } from "lucide-react";
+import { Bell, Building2, Check, Menu, Moon, Plus, Search, Sun, CreditCard, UserPlus, Vote, Wallet } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUIStore } from "@/stores/uiStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useNotification } from "@/hooks/useNotification";
-import { Avatar } from "@/components/ui/Avatar";
+import { useChamaStore } from "@/stores/chamaStore";
 import { useAuth } from "@/hooks/useAuth";
+import { Avatar } from "@/components/ui/Avatar";
 import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 const QUICK_ACTIONS = [
   { label: "New Loan", icon: CreditCard, path: "/loans", shortcut: "L" },
@@ -20,24 +22,40 @@ export function Navbar() {
   const { resolvedMode, toggle } = useTheme();
   const { unreadCount } = useNotification();
   const { user } = useAuth();
+  const chamas = useChamaStore((s) => s.chamas);
+  const storeMembers = useChamaStore((s) => s.members);
+  const activeChamaId = useChamaStore((s) => s.activeChamaId);
+  const setActiveChama = useChamaStore((s) => s.setActiveChama);
   const [quickOpen, setQuickOpen] = useState(false);
+  const [chamaOpen, setChamaOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const chamaDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setQuickOpen(false);
       }
+      if (chamaDropdownRef.current && !chamaDropdownRef.current.contains(e.target as Node)) {
+        setChamaOpen(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // User's chamas from memberships
+  const myChamas = chamas.filter((c) =>
+    storeMembers.some((m) => m.userId === user?.id && m.chamaId === c.id)
+  );
+  const activeChama = chamas.find((c) => c.id === activeChamaId);
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center gap-2 sm:gap-3 border-b border-gray-200/40 dark:border-white/[0.04] bg-white/80 dark:bg-neutral-950/75 backdrop-blur-2xl px-3 sm:px-4 lg:px-6">
       {/* Mobile menu toggle */}
       <button
         onClick={() => setMobileMenuOpen(true)}
+        aria-label="Open menu"
         className="lg:hidden rounded-xl p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-white/[0.04] focus-ring transition-colors"
       >
         <Menu className="h-5 w-5" />
@@ -61,6 +79,59 @@ export function Navbar() {
       </button>
 
       <div className="flex-1" />
+
+      {/* Chama Selector */}
+      {myChamas.length > 0 && (
+        <div className="relative hidden sm:block" ref={chamaDropdownRef}>
+          <button
+            onClick={() => setChamaOpen(!chamaOpen)}
+            className="flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-white/[0.08] px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors focus-ring"
+          >
+            <Building2 className="h-3.5 w-3.5 text-brand-500" />
+            <span className="max-w-[120px] truncate">{activeChama ? activeChama.name : "Select Chama"}</span>
+          </button>
+          <AnimatePresence>
+            {chamaOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-neutral-900 border border-gray-100 dark:border-white/[0.06] shadow-soft-xl p-2 z-50"
+              >
+                <button
+                  onClick={() => { setActiveChama(""); setChamaOpen(false); }}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                    !activeChamaId ? "bg-brand-50 dark:bg-brand-500/[0.08] text-brand-700 dark:text-brand-400" : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/[0.04]"
+                  )}
+                >
+                  <Building2 className="h-4 w-4" />
+                  All Chamas
+                  {!activeChamaId && <Check className="h-4 w-4 ml-auto text-brand-500" />}
+                </button>
+                <div className="my-1 border-t border-gray-100 dark:border-white/[0.04]" />
+                {myChamas.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => { setActiveChama(c.id); setChamaOpen(false); }}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                      activeChamaId === c.id ? "bg-brand-50 dark:bg-brand-500/[0.08] text-brand-700 dark:text-brand-400" : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/[0.04]"
+                    )}
+                  >
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-100 dark:bg-brand-500/[0.1] text-brand-600 dark:text-brand-400 text-[10px] font-bold">
+                      {c.name.charAt(0)}
+                    </span>
+                    <span className="truncate">{c.name}</span>
+                    {activeChamaId === c.id && <Check className="h-4 w-4 ml-auto text-brand-500 shrink-0" />}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
 
       {/* Quick Action Button with Dropdown */}
       <div className="relative" ref={dropdownRef}>
@@ -98,12 +169,13 @@ export function Navbar() {
         </AnimatePresence>
       </div>
 
-      {/* Mobile Quick Action */}
+      {/* Mobile Quick Action — opens command palette */}
       <button
-        onClick={() => setQuickOpen(!quickOpen)}
+        onClick={() => setCommandPaletteOpen(true)}
+        aria-label="Search and quick actions"
         className="sm:hidden rounded-xl p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50/80 dark:hover:bg-white/[0.04] transition-all duration-200 focus-ring"
       >
-        <Plus className="h-5 w-5" />
+        <Search className="h-5 w-5" />
       </button>
 
       {/* Theme Toggle with animated icon */}
@@ -125,6 +197,7 @@ export function Navbar() {
       {/* Notifications */}
       <Link
         to="/notifications"
+        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
         className="relative rounded-xl p-2 sm:p-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50/80 dark:hover:bg-white/[0.04] transition-all duration-200 focus-ring"
       >
         <Bell className="h-[18px] w-[18px]" />

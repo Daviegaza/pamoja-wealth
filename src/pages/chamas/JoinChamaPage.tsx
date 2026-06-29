@@ -1,17 +1,20 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 import { joinChamaSchema, type JoinChamaFormValues } from "@/schemas/chama.schema";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { ChamaCard } from "@/components/cards/ChamaCard";
 import { useChamaStore } from "@/stores/chamaStore";
-import { Search } from "lucide-react";
+import { Search, CheckCircle2, Clock } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function JoinChamaPage() {
-  const navigate = useNavigate();
   const chamas = useChamaStore((s) => s.chamas);
+  const [requestStatus, setRequestStatus] = useState<"idle" | "pending" | "done">("idle");
+  const [requestedCode, setRequestedCode] = useState("");
   const {
     register,
     handleSubmit,
@@ -20,10 +23,16 @@ export default function JoinChamaPage() {
     resolver: zodResolver(joinChamaSchema),
   });
 
-  const onSubmit = async () => {
+  const onSubmit = async (values: JoinChamaFormValues) => {
     await new Promise((r) => setTimeout(r, 600));
+    setRequestedCode(values.inviteCode);
+    setRequestStatus("pending");
     toast.success("Join request sent! You will be notified once approved.");
-    navigate("/chamas");
+    // Simulate approval after 2 seconds for demo
+    setTimeout(() => {
+      setRequestStatus("done");
+      toast.success("Your join request has been approved!");
+    }, 2000);
   };
 
   return (
@@ -39,17 +48,47 @@ export default function JoinChamaPage() {
             Enter an invite code shared by your chama administrator.
           </p>
         </div>
-        <form onSubmit={handleSubmit(onSubmit)} className="card-hover p-6 space-y-4">
-          <Input
-            label="Invite code"
-            placeholder="e.g. PW-7K2X9"
-            error={errors.inviteCode?.message}
-            {...register("inviteCode")}
-          />
-          <Button type="submit" className="w-full" variant="premium" isLoading={isSubmitting}>
-            Request to join
-          </Button>
-        </form>
+        {requestStatus === "idle" ? (
+          <form onSubmit={handleSubmit(onSubmit)} className="card-hover p-6 space-y-4">
+            <Input
+              label="Invite code"
+              placeholder="e.g. PW-7K2X9"
+              error={errors.inviteCode?.message}
+              {...register("inviteCode")}
+            />
+            <Button type="submit" className="w-full" variant="premium" isLoading={isSubmitting}>
+              Request to join
+            </Button>
+          </form>
+        ) : requestStatus === "pending" ? (
+          <div className="card-hover p-6 text-center space-y-3">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-500/[0.08] text-amber-600">
+              <Clock className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 dark:text-white">Request Pending</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Your request using code <Badge variant="brand">{requestedCode}</Badge> is being reviewed by the chama admin.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setRequestStatus("idle")}>Try another code</Button>
+          </div>
+        ) : (
+          <div className="card-hover p-6 text-center space-y-3">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-500/[0.08] text-emerald-600">
+              <CheckCircle2 className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 dark:text-white">Approved!</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                You have been added to the chama. View it on your dashboard.
+              </p>
+            </div>
+            <Link to="/chamas" className="inline-block">
+              <Button variant="premium" size="sm">View My Chamas</Button>
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Public Chamas */}

@@ -46,21 +46,25 @@ export default function TreasuryPage() {
   const analytics = useAnalytics();
   const transactions = useTransactions();
   const chamas = useChamaStore((s) => s.chamas);
-  const { page, totalPages, paginated, goToPage } = usePagination(transactions.slice(0, 200), 8);
+  const activeChamaId = useChamaStore((s) => s.activeChamaId);
+  const activeChama = chamas.find((c) => c.id === activeChamaId);
+  const chamaContribs = activeChamaId ? CONTRIBUTIONS.filter((c) => c.chamaId === activeChamaId) : CONTRIBUTIONS;
+  const chamaTxns = activeChamaId ? transactions.filter((t) => t.chamaId === activeChamaId) : transactions;
+  const { page, totalPages, paginated, goToPage } = usePagination(chamaTxns.slice(0, 200), 8);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const filteredContributions = CONTRIBUTIONS.filter((c) => {
+  const filteredContributions = chamaContribs.filter((c) => {
     const matchesSearch = c.memberName.toLowerCase().includes(query.toLowerCase());
     const matchesStatus = statusFilter === "all" || c.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const paidCount = CONTRIBUTIONS.filter((c) => c.status === "paid").length;
-  const pendingCount = CONTRIBUTIONS.filter((c) => c.status === "pending").length;
-  const overdueCount = CONTRIBUTIONS.filter((c) => c.status === "overdue").length;
-  const collectionRate = Math.round((paidCount / CONTRIBUTIONS.length) * 100);
-  const totalCollected = CONTRIBUTIONS.filter(c => c.status === "paid").reduce((s, c) => s + c.amount, 0);
+  const paidCount = chamaContribs.filter((c) => c.status === "paid").length;
+  const pendingCount = chamaContribs.filter((c) => c.status === "pending").length;
+  const overdueCount = chamaContribs.filter((c) => c.status === "overdue").length;
+  const collectionRate = Math.round((paidCount / chamaContribs.length) * 100);
+  const totalCollected = chamaContribs.filter(c => c.status === "paid").reduce((s, c) => s + c.amount, 0);
 
   const txColumns: Column<Transaction>[] = [
     { key: "reference", header: "Ref" },
@@ -139,7 +143,7 @@ export default function TreasuryPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Treasury</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Monitor contributions, track payments, and manage chama finances.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{activeChama ? `Finances for ${activeChama.name}` : "Monitor contributions, track payments, and manage chama finances."}</p>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" leftIcon={<Download className="h-3.5 w-3.5" />} onClick={() => toast.success("Treasury report exported.")}>
@@ -153,7 +157,7 @@ export default function TreasuryPage() {
 
       {/* Treasury Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Treasury Balance" value={formatCurrency(14_280_000)} change={5.2} icon={Wallet} />
+        <StatCard label="Treasury Balance" value={formatCurrency(activeChama ? activeChama.totalFunds : chamas.reduce((sum, c) => sum + c.totalFunds, 0))} change={5.2} icon={Wallet} />
         <StatCard label="Total Inflow (MTD)" value={formatCurrency(totalCollected)} icon={ArrowDownLeft} iconColor="icon-gradient-emerald" />
         <StatCard label="Collection Rate" value={`${collectionRate}%`} icon={TrendingUp} iconColor="icon-gradient-blue" />
         <StatCard label="Active Chamas" value={chamas.filter(c => c.status === "active").length.toString()} icon={Users} iconColor="icon-gradient-purple" />
@@ -181,7 +185,7 @@ export default function TreasuryPage() {
                       <div>
                         <p className="text-xs text-gray-400">Collected</p>
                         <p className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(totalCollected)}</p>
-                        <p className="text-[11px] text-gray-400">{paidCount} of {CONTRIBUTIONS.length} members</p>
+                        <p className="text-[11px] text-gray-400">{paidCount} of {chamaContribs.length} members</p>
                       </div>
                     </div>
                     <div className="mt-3">
@@ -193,7 +197,7 @@ export default function TreasuryPage() {
                       <Clock className="h-5 w-5 text-amber-500" />
                       <div>
                         <p className="text-xs text-gray-400">Pending</p>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(CONTRIBUTIONS.filter(c => c.status === "pending").reduce((s, c) => s + c.amount, 0))}</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(chamaContribs.filter(c => c.status === "pending").reduce((s, c) => s + c.amount, 0))}</p>
                         <p className="text-[11px] text-gray-400">{pendingCount} members</p>
                       </div>
                     </div>
@@ -203,7 +207,7 @@ export default function TreasuryPage() {
                       <AlertTriangle className="h-5 w-5 text-red-500" />
                       <div>
                         <p className="text-xs text-gray-400">Overdue</p>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(CONTRIBUTIONS.filter(c => c.status === "overdue").reduce((s, c) => s + c.amount, 0))}</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(chamaContribs.filter(c => c.status === "overdue").reduce((s, c) => s + c.amount, 0))}</p>
                         <p className="text-[11px] text-gray-400">{overdueCount} members</p>
                       </div>
                     </div>

@@ -29,7 +29,7 @@ export function generateUsers(count: number): User[] {
   const users: User[] = [];
   for (let i = 0; i < count; i++) {
     const name = randomFullName();
-    const role = i === 0 ? "owner" : pick(ROLE_WEIGHTS);
+    const role = pick(ROLE_WEIGHTS);
     users.push({
       id: `usr_${i + 1}`,
       fullName: i === 0 ? "Amara Okafor" : name,

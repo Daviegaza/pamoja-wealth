@@ -2,10 +2,10 @@ import { motion } from "framer-motion";
 import { Users, Building2, Wallet, Shield } from "lucide-react";
 
 const STATS = [
-  { value: "1,000+", label: "Active members", icon: Users },
-  { value: "200+", label: "Chamas managed", icon: Building2 },
-  { value: "KES 2.4B+", label: "Wealth tracked", icon: Wallet },
-  { value: "99.95%", label: "Platform uptime", icon: Shield },
+  { value: "1,000+", label: "Simulated members", icon: Users },
+  { value: "200+", label: "Simulated chamas", icon: Building2 },
+  { value: "KES 2.4B+", label: "Demo portfolio", icon: Wallet },
+  { value: "99.95%", label: "Demo uptime target", icon: Shield },
 ];
 
 export function StatsSection() {

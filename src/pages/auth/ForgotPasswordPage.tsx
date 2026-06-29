@@ -24,7 +24,7 @@ export default function ForgotPasswordPage() {
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Forgot your password?</h1>
       <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">Enter your email and we will send you reset instructions.</p>
       <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-4">
-        <Input label="Email address" type="email" placeholder="you@example.com" leftIcon={<Mail className="h-4 w-4" />} error={errors.email?.message} {...register("email")} />
+        <Input label="Email address" type="email" placeholder="you@example.com" leftIcon={<Mail className="h-4 w-4" />} error={errors.email?.message} autoFocus {...register("email")} />
         <Button type="submit" className="w-full" isLoading={isSubmitting}>Send reset instructions</Button>
       </form>
       <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">

@@ -13,28 +13,28 @@ const FOOTER_LINKS = [
   {
     title: "Company",
     links: [
-      { label: "About", path: "/" },
-      { label: "Careers", path: "/" },
-      { label: "Blog", path: "/" },
-      { label: "Press", path: "/" },
+      { label: "About", path: "/about" },
+      { label: "Careers", path: "/about" },
+      { label: "Blog", path: "/about" },
+      { label: "Press", path: "/about" },
     ],
   },
   {
     title: "Resources",
     links: [
       { label: "Help Center", path: "/support" },
-      { label: "Community", path: "/" },
-      { label: "Guides", path: "/" },
-      { label: "API Docs", path: "/" },
+      { label: "Community", path: "/about" },
+      { label: "Guides", path: "/help" },
+      { label: "API Docs", path: "/help" },
     ],
   },
   {
     title: "Legal",
     links: [
-      { label: "Privacy", path: "/" },
-      { label: "Terms", path: "/" },
-      { label: "Security", path: "/" },
-      { label: "Compliance", path: "/" },
+      { label: "Privacy", path: "/privacy" },
+      { label: "Terms", path: "/terms" },
+      { label: "Security", path: "/security" },
+      { label: "Compliance", path: "/security" },
     ],
   },
 ];
@@ -62,7 +62,7 @@ export function Footer() {
                 <li key={l.label}>
                   <Link
                     to={l.path}
-                    className="text-sm text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                    className="focus-ring text-sm text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
                   >
                     {l.label}
                   </Link>

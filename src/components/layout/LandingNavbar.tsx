@@ -44,7 +44,7 @@ export function LandingNavbar() {
             <a
               key={l.label}
               href={l.href}
-              className="relative px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50/50 dark:hover:bg-brand-500/[0.04]"
+              className="focus-ring relative px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50/50 dark:hover:bg-brand-500/[0.04]"
             >
               {l.label}
             </a>
@@ -83,7 +83,7 @@ export function LandingNavbar() {
                   key={l.label}
                   href={l.href}
                   onClick={() => setOpen(false)}
-                  className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 py-2 transition-colors"
+                  className="focus-ring text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 py-2 transition-colors"
                 >
                   {l.label}
                 </a>

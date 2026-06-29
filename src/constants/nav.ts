@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard, Users, Wallet, CreditCard, TrendingUp, Calendar, Vote, FileText,
-  BarChart3, Bot, Bell, Settings, ShieldCheck, Building2, ArrowLeftRight, UserCircle, LifeBuoy, ServerCog, Shield,
+  BarChart3, Bot, Bell, Settings, Building2, ArrowLeftRight, UserCircle, LifeBuoy,
 } from "lucide-react";
 import type { Permission } from "@/types";
 
@@ -34,12 +34,6 @@ export const SECONDARY_NAV: NavItem[] = [
   { label: "Notifications", path: "/notifications", icon: Bell },
   { label: "Profile", path: "/profile", icon: UserCircle },
   { label: "Settings", path: "/settings", icon: Settings },
+  { label: "Billing", path: "/billing", icon: CreditCard },
   { label: "Support", path: "/support", icon: LifeBuoy },
-];
-
-export const ADMIN_NAV: NavItem[] = [
-  { label: "Owner", path: "/owner", icon: Shield, permission: "manage_billing" },
-  { label: "Billing", path: "/billing", icon: CreditCard, permission: "manage_billing" },
-  { label: "Admin", path: "/admin", icon: ShieldCheck, permission: "manage_settings" },
-  { label: "Super Admin", path: "/super-admin", icon: ServerCog, permission: "manage_billing" },
 ];

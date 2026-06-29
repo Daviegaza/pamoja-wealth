@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion, easeOut } from "framer-motion";
 import {
   Calendar, CreditCard, TrendingUp, Wallet, Building2,
-  Shield, Activity, Vote,
-  ArrowDownToLine, Send,
+  Activity, Vote, ArrowDownToLine, Send, UserPlus, Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { StatCard } from "@/components/cards/StatCard";
@@ -22,12 +21,15 @@ import { Select } from "@/components/ui/Select";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useMeetings } from "@/hooks/useMeetings";
 import { useLoans } from "@/hooks/useLoans";
+import { useInvestments } from "@/hooks/useInvestments";
 import { useAuth } from "@/hooks/useAuth";
 import { useChamaStore } from "@/stores/chamaStore";
 import { useWalletStore } from "@/stores/walletStore";
 import { useMeetingStore } from "@/stores/meetingStore";
+import { usePermissions } from "@/hooks/usePermissions";
 import { getMockDatabase } from "@/mock";
 import { formatCurrency } from "@/lib/utils";
+import type { Role } from "@/types";
 
 const db = getMockDatabase();
 
@@ -41,14 +43,31 @@ const fadeUp = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: easeOut } },
 };
 
+const ROLE_RANK: Record<Role, number> = {
+  member: 0, secretary: 1, treasurer: 2, chairperson: 3, admin: 4, owner: 5, super_admin: 6,
+};
+
+import { SkeletonLoader } from "@/components/common/SkeletonLoader";
+
 export default function DashboardPage() {
   const analytics = useAnalytics();
   const meetings = useMeetings();
   const { loans, applyForLoan } = useLoans();
+  const investments = useInvestments();
   const { user } = useAuth();
   const chamas = useChamaStore((s) => s.chamas);
+  const storeMembers = useChamaStore((s) => s.members);
   const { votes, castVote } = useMeetingStore();
   const { wallet, deposit } = useWalletStore();
+  const { can } = usePermissions();
+
+  if (!user) {
+    return (
+      <div className="p-8">
+        <SkeletonLoader rows={6} />
+      </div>
+    );
+  }
 
   // Action modals
   const [contributeOpen, setContributeOpen] = useState(false);
@@ -60,9 +79,25 @@ export default function DashboardPage() {
   const [loanPurpose, setLoanPurpose] = useState("Business expansion");
   const [selectedVoteId, setSelectedVoteId] = useState("");
 
-  const myChamas = chamas.filter((c) =>
-    db.members.some((m) => m.userId === user?.id && m.chamaId === c.id)
-  );
+  // Per-chama role derivation
+  const myMemberships = storeMembers.filter((m) => m.userId === user?.id);
+  const myChamas = chamas.filter((c) => myMemberships.some((m) => m.chamaId === c.id));
+  const myChamaIds = new Set(myChamas.map((c) => c.id));
+
+  const { highestRole, highestRoleLabel } = useMemo(() => {
+    if (myMemberships.length === 0) return { highestRole: "member" as Role, highestRoleLabel: "New Member" };
+    let best: Role = "member";
+    for (const m of myMemberships) {
+      if (ROLE_RANK[m.role] > ROLE_RANK[best]) best = m.role;
+    }
+    return { highestRole: best, highestRoleLabel: best.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase()) };
+  }, [myMemberships]);
+
+  const isElevated = highestRole !== "member";
+
+  const myInvestmentsValue = investments
+    .filter((i) => myChamaIds.has(i.chamaId) && i.status === "active")
+    .reduce((sum, i) => sum + i.currentValue, 0);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -74,9 +109,6 @@ export default function DashboardPage() {
   const myLoans = loans.filter((l) => l.borrowerId === user?.id).slice(0, 3);
   const openVotes = votes.filter((v) => v.status === "open").slice(0, 5);
   const recentActivity = db.activity.slice(0, 5);
-
-  const role = user?.role ?? "member";
-  const isOwner = role === "owner";
 
   // Real action handlers
   const handleContribute = () => {
@@ -121,6 +153,58 @@ export default function DashboardPage() {
     setSelectedVoteId("");
   };
 
+  // ===== ONBOARDING: No chamas yet =====
+  if (myChamas.length === 0) {
+    return (
+      <motion.div className="max-w-2xl mx-auto py-16 px-4 text-center space-y-8" variants={container} initial="hidden" animate="visible">
+        <motion.div variants={fadeUp} className="space-y-4">
+          <div className="inline-flex h-20 w-20 items-center justify-center rounded-3xl icon-gradient-brand shadow-glow-sm mb-2">
+            <Building2 className="h-10 w-10" />
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">
+            Welcome to Pamoja Wealth{user?.fullName ? `, ${user.fullName.split(" ")[0]}` : ""}
+          </h1>
+          <p className="text-base text-gray-500 dark:text-gray-400 max-w-md mx-auto leading-relaxed">
+            Your journey to building wealth together starts here. Create a chama for your savings group, or join an existing one.
+          </p>
+        </motion.div>
+
+        <motion.div variants={fadeUp} className="grid sm:grid-cols-2 gap-4">
+          <Link to="/chamas/create" className="card-hover p-6 text-left group">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-500/[0.08] text-brand-600 dark:text-brand-400 mb-4 group-hover:scale-105 transition-transform">
+              <UserPlus className="h-6 w-6" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Create a Chama</h3>
+            <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+              Start a new savings group, investment club, or welfare fund. Set contribution amounts, invite members, and begin tracking in minutes.
+            </p>
+            <span className="inline-flex items-center gap-1 mt-4 text-sm font-semibold text-brand-600 dark:text-brand-400 group-hover:gap-2 transition-all">
+              Get started <span className="transition-transform group-hover:translate-x-0.5">→</span>
+            </span>
+          </Link>
+
+          <Link to="/chamas/join" className="card-hover p-6 text-left group">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-500/[0.08] text-blue-600 dark:text-blue-400 mb-4 group-hover:scale-105 transition-transform">
+              <Search className="h-6 w-6" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Join a Chama</h3>
+            <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+              Already have an invite code? Join an existing chama and start contributing, applying for loans, and participating in group decisions.
+            </p>
+            <span className="inline-flex items-center gap-1 mt-4 text-sm font-semibold text-brand-600 dark:text-brand-400 group-hover:gap-2 transition-all">
+              Join now <span className="transition-transform group-hover:translate-x-0.5">→</span>
+            </span>
+          </Link>
+        </motion.div>
+
+        <motion.p variants={fadeUp} className="text-xs text-gray-400">
+          Need help? <Link to="/help" className="text-brand-600 hover:text-brand-700 font-medium">Browse our guides</Link> or <Link to="/support" className="text-brand-600 hover:text-brand-700 font-medium">contact support</Link>.
+        </motion.p>
+      </motion.div>
+    );
+  }
+
+  // ===== FULL DASHBOARD: Has chamas =====
   return (
     <motion.div className="space-y-6" variants={container} initial="hidden" animate="visible">
       {/* Welcome + Action Bar */}
@@ -132,21 +216,23 @@ export default function DashboardPage() {
               <motion.span className="inline-block ml-1" animate={{ rotate: [0, 14, -8, 14, 0] }} transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 3 }}>👋</motion.span>
             </h1>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-              <Badge variant="brand" className="capitalize">{role.replace("_", " ")}</Badge>
+              <Badge variant="brand" className="capitalize">{highestRoleLabel}</Badge>
+              {myChamas.length > 0 && (
+                <>
+                  <span className="text-xs text-gray-400">·</span>
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{myChamas.length} chama{myChamas.length !== 1 ? "s" : ""}</span>
+                </>
+              )}
               <span className="text-xs text-gray-400">·</span>
               <p className="text-sm text-gray-500 dark:text-gray-400">{new Date().toLocaleDateString("en-KE", { weekday: "long", month: "long", day: "numeric" })}</p>
-              <span className="text-gray-300 dark:text-gray-700">·</span>
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-soft" />All systems normal
-              </span>
             </div>
           </div>
-          {isOwner && (
-            <Link to="/owner"><Button variant="premium" size="sm" leftIcon={<Shield className="h-3.5 w-3.5" />}>Owner Center</Button></Link>
-          )}
+          <Link to="/chamas">
+            <Button variant="outline" size="sm" leftIcon={<Building2 className="h-3.5 w-3.5" />}>My Chamas</Button>
+          </Link>
         </div>
 
-        {/* ACTION BAR - Real working buttons */}
+        {/* ACTION BAR */}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="premium" leftIcon={<ArrowDownToLine className="h-3.5 w-3.5" />} onClick={() => setContributeOpen(true)}>
             Make Contribution
@@ -173,39 +259,49 @@ export default function DashboardPage() {
         <Link to="/wallet"><StatCard label="My Balance" value={formatCurrency(wallet.balance)} change={5.3} icon={Wallet} /></Link>
         <Link to="/chamas"><StatCard label="My Chamas" value={myChamas.length.toString()} icon={Building2} iconColor="icon-gradient-blue" /></Link>
         <Link to="/loans"><StatCard label="Active Loans" value={formatCurrency(myLoans.reduce((s, l) => s + (l.status === "active" ? l.amount - l.amountRepaid : 0), 0))} icon={CreditCard} iconColor="icon-gradient-purple" /></Link>
-        <Link to="/investments"><StatCard label="Investments" value={formatCurrency(320_000)} change={8.2} icon={TrendingUp} iconColor="icon-gradient-emerald" /></Link>
+        <Link to="/investments"><StatCard label="Investments" value={myInvestmentsValue > 0 ? formatCurrency(myInvestmentsValue) : formatCurrency(320_000)} change={8.2} icon={TrendingUp} iconColor="icon-gradient-emerald" /></Link>
       </motion.div>
 
       {/* Charts + Sidebar */}
-      <motion.div variants={fadeUp} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <ChartCard title="Contribution Growth" subtitle="Last 12 months"><ContributionGrowthChart data={analytics.contributionGrowth} /></ChartCard>
-          <ChartCard title="Cash Flow"><CashFlowChart data={analytics.cashFlow} /></ChartCard>
-        </div>
-        <div className="space-y-6">
-          <AIInsightCard insights={[
-            "Your contributions are 8.4% above the platform average.",
-            isOwner ? "3 security alerts need your attention." : "3 loan repayments due within 7 days.",
-            `You have ${openVotes.length} open vote${openVotes.length !== 1 ? "s" : ""} to participate in.`,
-          ]} />
+      {isElevated && (
+        <motion.div variants={fadeUp} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <ChartCard title="Contribution Growth" subtitle="Last 12 months"><ContributionGrowthChart data={analytics.contributionGrowth} /></ChartCard>
+            <ChartCard title="Cash Flow"><CashFlowChart data={analytics.cashFlow} /></ChartCard>
+          </div>
+          <div className="space-y-6">
+            <AIInsightCard insights={[
+              "Your contributions are 8.4% above the platform average.",
+              `You have ${openVotes.length} open vote${openVotes.length !== 1 ? "s" : ""} to participate in.`,
+              can("manage_treasury") ? "Treasury health is strong — collection rate is at 94%." : "3 loan repayments due within 7 days.",
+            ]} />
 
-          {/* My Chamas quick list */}
-          <div className="card-hover p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2"><Building2 className="h-4 w-4 text-brand-500" /> My Chamas</h3>
-              <Link to="/chamas" className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline">View all</Link>
-            </div>
-            <div className="space-y-2">
-              {myChamas.slice(0, 4).map((c) => (
-                <Link key={c.id} to={`/chamas/${c.id}`} className="flex items-center justify-between rounded-lg p-2 hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors">
-                  <span className="text-sm font-medium text-gray-900 dark:text-white truncate">{c.name}</span>
-                  <Badge variant={c.status === "active" ? "success" : "default"} className="text-[10px] capitalize">{c.status}</Badge>
-                </Link>
-              ))}
+            {/* My Chamas quick list */}
+            <div className="card-hover p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2"><Building2 className="h-4 w-4 text-brand-500" /> My Chamas</h3>
+                <Link to="/chamas" className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline">View all</Link>
+              </div>
+              <div className="space-y-2">
+                {myChamas.slice(0, 4).map((c) => {
+                  const memberRecord = myMemberships.find((m) => m.chamaId === c.id);
+                  return (
+                    <Link key={c.id} to={`/chamas/${c.id}`} className="flex items-center justify-between rounded-lg p-2 hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors">
+                      <div className="min-w-0">
+                        <span className="text-sm font-medium text-gray-900 dark:text-white truncate block">{c.name}</span>
+                        {memberRecord && (
+                          <span className="text-[10px] text-gray-400 capitalize">{memberRecord.role.replace("_", " ")}</span>
+                        )}
+                      </div>
+                      <Badge variant={c.status === "active" ? "success" : "default"} className="text-[10px] capitalize shrink-0 ml-2">{c.status}</Badge>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      )}
 
       {/* Bottom Row */}
       <motion.div variants={fadeUp} className="grid grid-cols-1 lg:grid-cols-3 gap-6">

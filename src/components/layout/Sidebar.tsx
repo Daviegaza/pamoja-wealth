@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ChevronsLeft, LogOut } from "lucide-react";
-import { PRIMARY_NAV, SECONDARY_NAV, ADMIN_NAV } from "@/constants/nav";
+import { PRIMARY_NAV, SECONDARY_NAV } from "@/constants/nav";
 import { useUIStore } from "@/stores/uiStore";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
@@ -84,7 +84,6 @@ export function Sidebar() {
         <NavSection items={PRIMARY_NAV} collapsed={sidebarCollapsed} />
         <div className="h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-white/[0.06] to-transparent" />
         <NavSection items={SECONDARY_NAV} collapsed={sidebarCollapsed} />
-        <NavSection items={ADMIN_NAV} collapsed={sidebarCollapsed} />
       </div>
 
       {/* User + Collapse */}

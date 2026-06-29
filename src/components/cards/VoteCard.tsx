@@ -42,18 +42,27 @@ export function VoteCard({ vote, onVote }: { vote: Vote; onVote?: (_optionId: st
           );
         })}
       </div>
-      <div className="mt-5 flex items-center justify-between">
-        <p className="text-xs text-gray-400 font-medium">
-          Closes {formatDate(vote.closesAt)}
-        </p>
-        {vote.status === "open" && onVote ? (
-          <Button size="sm" variant="premium" onClick={() => onVote(vote.options[0]?.id)}>
-            Cast Vote
-          </Button>
-        ) : vote.status === "open" ? (
+      {vote.status === "open" && onVote ? (
+        <div className="mt-4 space-y-2">
+          <p className="text-xs text-gray-400 font-medium">Select an option to vote:</p>
+          <div className="flex flex-wrap gap-2">
+            {vote.options.map((opt) => (
+              <Button key={opt.id} size="sm" variant="outline" onClick={() => onVote(opt.id)}>
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      ) : vote.status === "open" ? (
+        <div className="mt-5 flex items-center justify-between">
+          <p className="text-xs text-gray-400 font-medium">Closes {formatDate(vote.closesAt)}</p>
           <Badge variant="success" dot>Voted</Badge>
-        ) : null}
-      </div>
+        </div>
+      ) : (
+        <div className="mt-5">
+          <p className="text-xs text-gray-400 font-medium">Closed {formatDate(vote.closesAt)}</p>
+        </div>
+      )}
     </motion.div>
   );
 }

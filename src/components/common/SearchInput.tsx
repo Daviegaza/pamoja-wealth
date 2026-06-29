@@ -8,10 +8,10 @@ export function SearchInput({ value, onChange, placeholder = "Search..." }: { va
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-10 w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 pl-9 pr-9 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus-ring"
+        className="h-11 w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 pl-9 pr-9 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-500 focus-ring"
       />
       {value && (
-        <button onClick={() => onChange("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+        <button onClick={() => onChange("")} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
           <X className="h-3.5 w-3.5" />
         </button>
       )}

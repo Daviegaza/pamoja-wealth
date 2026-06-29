@@ -11,11 +11,16 @@ import { useLoans } from "@/hooks/useLoans";
 import { useFilter } from "@/hooks/useFilter";
 import { usePagination } from "@/hooks/usePagination";
 import { CreditCard } from "lucide-react";
+import { useChamaStore } from "@/stores/chamaStore";
 
 export default function LoansPage() {
   const { loans } = useLoans();
+  const activeChamaId = useChamaStore((s) => s.activeChamaId);
+  const chamas = useChamaStore((s) => s.chamas);
+  const activeChama = chamas.find((c) => c.id === activeChamaId);
+  const displayLoans = activeChamaId ? loans.filter((l) => l.chamaId === activeChamaId) : loans;
   const [open, setOpen] = useState(false);
-  const { value, setValue, results } = useFilter(loans, "status");
+  const { value, setValue, results } = useFilter(displayLoans, "status");
   const { page, totalPages, paginated, goToPage } = usePagination(results, 9);
 
   return (
@@ -23,7 +28,7 @@ export default function LoansPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Loans</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{loans.length.toLocaleString()} loan records across the platform</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{displayLoans.length.toLocaleString()} loan records in {activeChama?.name ?? "All Chamas"}</p>
         </div>
         <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => setOpen(true)}>Apply for Loan</Button>
       </div>

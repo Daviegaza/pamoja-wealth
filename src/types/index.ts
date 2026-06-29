@@ -79,16 +79,6 @@ export interface Chama {
   location: string;
 }
 
-export interface Contribution {
-  id: string;
-  chamaId: string;
-  memberId: string;
-  memberName: string;
-  amount: number;
-  date: string;
-  method: "mpesa" | "bank" | "card" | "cash";
-  status: TransactionStatus;
-}
 
 export interface Wallet {
   id: string;
@@ -124,15 +114,6 @@ export interface Loan {
   guarantors: string[];
 }
 
-export interface LoanPayment {
-  id: string;
-  loanId: string;
-  amount: number;
-  date: string;
-  principal: number;
-  interest: number;
-  status: TransactionStatus;
-}
 
 export interface Investment {
   id: string;
@@ -206,19 +187,6 @@ export interface Notification {
   actionUrl?: string;
 }
 
-export interface DashboardSummary {
-  totalWealth: number;
-  wealthChangePercent: number;
-  monthlyContributions: number;
-  contributionChangePercent: number;
-  cashFlow: number;
-  activeLoans: number;
-  totalLoanValue: number;
-  activeInvestments: number;
-  totalInvestmentValue: number;
-  averageRoi: number;
-  upcomingMeetingsCount: number;
-}
 
 export interface Analytics {
   contributionGrowth: { month: string; amount: number }[];
@@ -240,14 +208,6 @@ export interface ActivityItem {
   icon: NotificationType;
 }
 
-export interface Profile {
-  user: User;
-  bio: string;
-  joinedChamas: number;
-  totalContributed: number;
-  totalBorrowed: number;
-  reputationScore: number;
-}
 
 export interface Settings {
   theme: ThemeMode;
@@ -278,72 +238,7 @@ export interface AIChatMessage {
 
 // ===== API / Pagination / Filters =====
 
-export interface ApiResponse<T> {
-  data: T;
-  success: boolean;
-  message?: string;
-}
 
-export interface PaginatedResponse<T> {
-  items: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
-export interface Pagination {
-  page: number;
-  pageSize: number;
-  total: number;
-}
-
-export interface Filters {
-  search?: string;
-  status?: string;
-  category?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  sortBy?: string;
-  sortDirection?: "asc" | "desc";
-}
-
-export interface Theme {
-  mode: ThemeMode;
-}
-
-export interface SecurityLog {
-  id: string;
-  event: "login_success" | "login_failed" | "password_change" | "account_locked" | "suspicious_activity" | "admin_action" | "data_export" | "permission_change";
-  userId?: string;
-  userName: string;
-  ipAddress: string;
-  location: string;
-  userAgent: string;
-  details: string;
-  severity: "low" | "medium" | "high" | "critical";
-  timestamp: string;
-}
-
-export interface LoginAttempt {
-  id: string;
-  email: string;
-  ipAddress: string;
-  location: string;
-  success: boolean;
-  reason?: string;
-  timestamp: string;
-}
-
-export interface SecurityMetrics {
-  totalLoginsToday: number;
-  failedLoginsToday: number;
-  suspiciousIPs: number;
-  lockedAccounts: number;
-  activeSessions: number;
-  lastSecurityAudit: string;
-  threatLevel: "low" | "elevated" | "high" | "critical";
-}
 
 // ===== Banking & Payments =====
 
@@ -372,16 +267,6 @@ export interface MpesaAccount {
   lastUsed: string;
 }
 
-export interface PaymentMethod {
-  id: string;
-  userId: string;
-  type: PaymentMethodType;
-  label: string;
-  detail: string;
-  isDefault: boolean;
-  isVerified: boolean;
-  lastUsed: string;
-}
 
 export interface ContributionRecord {
   id: string;
@@ -393,31 +278,6 @@ export interface ContributionRecord {
   status: "paid" | "pending" | "overdue";
   paidAt?: string;
   method: PaymentMethodType;
-}
-
-export interface BankTransaction {
-  id: string;
-  accountId: string;
-  type: "credit" | "debit";
-  amount: number;
-  description: string;
-  reference: string;
-  category: string;
-  date: string;
-  status: "completed" | "pending" | "failed";
-  counterParty: string;
-}
-
-export interface FinancialSummary {
-  totalAssets: number;
-  totalLiabilities: number;
-  totalContributions: number;
-  totalLoansDisbursed: number;
-  totalLoanRepayments: number;
-  totalInvestments: number;
-  totalDividends: number;
-  netWorth: number;
-  monthlyGrowth: number;
 }
 
 // ===== Connections & Network =====

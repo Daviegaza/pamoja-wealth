@@ -30,11 +30,11 @@ const variants: Record<NonNullable<ButtonProps["variant"]>, string> = {
 };
 
 const sizes: Record<NonNullable<ButtonProps["size"]>, string> = {
-  sm: "h-8 px-3 text-xs gap-1.5 rounded-lg",
-  md: "h-10 px-4 text-sm gap-2 rounded-xl",
+  sm: "h-11 px-3 text-xs gap-1.5 rounded-lg",
+  md: "h-11 px-4 text-sm gap-2 rounded-xl",
   lg: "h-12 px-6 text-base gap-2 rounded-xl",
   xl: "h-14 px-8 text-base gap-3 rounded-xl",
-  icon: "h-10 w-10 p-0 justify-center rounded-xl",
+  icon: "h-11 w-11 p-0 justify-center rounded-xl",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(

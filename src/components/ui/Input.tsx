@@ -1,4 +1,4 @@
-import { type InputHTMLAttributes, forwardRef } from "react";
+import { type InputHTMLAttributes, forwardRef, useId } from "react";
 import { cn } from "@/lib/utils";
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -13,6 +13,7 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, hint, leftIcon, rightIcon, id, variant = "default", ...props }, ref) => {
     const inputId = id ?? label?.toLowerCase().replace(/\s/g, "-");
+    const errorId = useId();
 
     const baseClasses =
       variant === "filled"
@@ -35,6 +36,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             id={inputId}
+            aria-describedby={error ? errorId : undefined}
+            aria-invalid={!!error}
             className={cn(
               baseClasses,
               leftIcon && "pl-10",
@@ -50,7 +53,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             </span>
           )}
         </div>
-        {error && <p className="mt-1.5 text-xs font-medium text-red-500">{error}</p>}
+        {error && <p id={errorId} className="mt-1.5 text-xs font-medium text-red-500">{error}</p>}
         {hint && !error && <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-500">{hint}</p>}
       </div>
     );

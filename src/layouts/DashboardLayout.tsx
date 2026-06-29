@@ -66,7 +66,7 @@ export function DashboardLayout() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex flex-col items-center gap-1 px-3 py-1 rounded-xl text-[10px] font-medium transition-colors ${
+                className={`focus-ring flex flex-col items-center gap-1 px-3 py-1 rounded-xl text-[10px] font-medium transition-colors ${
                   isActive
                     ? "text-brand-600 dark:text-brand-400"
                     : "text-gray-400 dark:text-gray-500"

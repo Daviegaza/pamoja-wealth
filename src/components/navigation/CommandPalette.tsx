@@ -4,14 +4,22 @@ import { createPortal } from "react-dom";
 import { Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCommandPalette } from "@/hooks/useCommandPalette";
+import { usePermissions } from "@/hooks/usePermissions";
 import { PRIMARY_NAV, SECONDARY_NAV } from "@/constants/nav";
 
 export function CommandPalette() {
   const { isOpen, setOpen } = useCommandPalette();
+  const { can } = usePermissions();
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
 
-  const items = useMemo(() => [...PRIMARY_NAV, ...SECONDARY_NAV], []);
+  const items = useMemo(
+    () =>
+      [...PRIMARY_NAV, ...SECONDARY_NAV].filter(
+        (item) => !item.permission || can(item.permission)
+      ),
+    [can]
+  );
   const filtered = items.filter((i) => i.label.toLowerCase().includes(query.toLowerCase()));
 
   if (!isOpen) return null;

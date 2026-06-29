@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { loginSchema, type LoginFormValues } from "@/schemas/auth.schema";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -35,6 +35,7 @@ export function LoginForm() {
         placeholder="you@example.com"
         leftIcon={<Mail className="h-4 w-4" />}
         error={errors.email?.message}
+        autoFocus
         {...register("email")}
       />
       <Input
@@ -47,9 +48,9 @@ export function LoginForm() {
       />
       <div className="flex items-center justify-between text-sm">
         <Checkbox label="Remember me" />
-        <a href="/forgot-password" className="font-semibold text-brand-600 hover:text-brand-700 transition-colors">
+        <Link to="/forgot-password" className="font-semibold text-brand-600 hover:text-brand-700 transition-colors">
           Forgot password?
-        </a>
+        </Link>
       </div>
       <Button type="submit" className="w-full" size="lg" isLoading={isSubmitting} variant="premium">
         Sign in

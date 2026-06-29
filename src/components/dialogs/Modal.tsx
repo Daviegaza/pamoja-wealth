@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect, useId, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { createPortal } from "react-dom";
@@ -16,6 +16,48 @@ export interface ModalProps {
 const sizes = { sm: "max-w-sm", md: "max-w-md", lg: "max-w-2xl", xl: "max-w-4xl", "2xl": "max-w-5xl" };
 
 export function Modal({ isOpen, onClose, title, description, children, size = "md" }: ModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const panel = panelRef.current;
+    if (panel) {
+      const focusable = panel.querySelectorAll<HTMLElement>(
+        'button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length > 0) {
+        focusable[0].focus();
+      }
+    }
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key === "Tab" && panel) {
+        const focusable = panel.querySelectorAll<HTMLElement>(
+          'button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [isOpen, onClose]);
   return createPortal(
     <AnimatePresence>
       {isOpen && (
@@ -32,6 +74,7 @@ export function Modal({ isOpen, onClose, title, description, children, size = "m
 
           {/* Panel */}
           <motion.div
+            ref={panelRef}
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
@@ -42,6 +85,7 @@ export function Modal({ isOpen, onClose, title, description, children, size = "m
             )}
             role="dialog"
             aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
           >
             {/* Gradient top accent */}
             <div className="absolute top-0 left-4 right-4 h-0.5 rounded-full bg-gradient-to-r from-brand-500 via-brand-400 to-transparent opacity-50" />
@@ -55,7 +99,7 @@ export function Modal({ isOpen, onClose, title, description, children, size = "m
             </button>
 
             {title && (
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white pr-8">{title}</h3>
+              <h3 id={titleId} className="text-lg font-semibold text-gray-900 dark:text-white pr-8">{title}</h3>
             )}
             {description && (
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p>

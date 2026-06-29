@@ -1,16 +1,20 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { X, LogOut } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { PRIMARY_NAV, SECONDARY_NAV, ADMIN_NAV } from "@/constants/nav";
+import { PRIMARY_NAV, SECONDARY_NAV } from "@/constants/nav";
 import { useUIStore } from "@/stores/uiStore";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/utils";
 
 export function MobileSidebar() {
   const { mobileMenuOpen, setMobileMenuOpen } = useUIStore();
   const { user, logout } = useAuth();
-  const allNav = [...PRIMARY_NAV, ...SECONDARY_NAV, ...ADMIN_NAV];
+  const { can } = usePermissions();
+  const allNav = [...PRIMARY_NAV, ...SECONDARY_NAV].filter(
+    (item) => !item.permission || can(item.permission)
+  );
 
   return (
     <AnimatePresence>
@@ -43,7 +47,7 @@ export function MobileSidebar() {
               </div>
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="rounded-xl p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.04] transition-colors"
+                className="focus-ring rounded-xl p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.04] transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -58,7 +62,7 @@ export function MobileSidebar() {
                   onClick={() => setMobileMenuOpen(false)}
                   className={({ isActive }) =>
                     cn(
-                      "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                      "focus-ring flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
                       isActive
                         ? "bg-brand-50 dark:bg-brand-500/[0.08] text-brand-700 dark:text-brand-400"
                         : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/[0.03] hover:text-gray-900 dark:hover:text-white"

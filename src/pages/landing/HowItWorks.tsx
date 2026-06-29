@@ -34,7 +34,7 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <section className="mx-auto max-w-7xl px-6 py-20 lg:py-28">
+    <section id="how-it-works" className="mx-auto max-w-7xl px-6 py-20 lg:py-28">
       <div className="text-center max-w-2xl mx-auto mb-16">
         <motion.p
           initial={{ opacity: 0, y: 8 }}
