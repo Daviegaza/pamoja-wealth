@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Wallet, TrendingUp, ArrowDownLeft, Users,
   CheckCircle, Clock, AlertTriangle, FileText, Download,
@@ -14,12 +14,14 @@ import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { SearchInput } from "@/components/common/SearchInput";
+import { EmptyState } from "@/components/common/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useTransactions } from "@/hooks/useTransactions";
 import { usePagination } from "@/hooks/usePagination";
 import { Pagination } from "@/components/common/Pagination";
 import { useChamaStore } from "@/stores/chamaStore";
+import { useAuth } from "@/hooks/useAuth";
 import { getMockDatabase } from "@/mock";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Transaction, ContributionRecord } from "@/types";
@@ -47,12 +49,46 @@ export default function TreasuryPage() {
   const transactions = useTransactions();
   const chamas = useChamaStore((s) => s.chamas);
   const activeChamaId = useChamaStore((s) => s.activeChamaId);
-  const activeChama = chamas.find((c) => c.id === activeChamaId);
-  const chamaContribs = activeChamaId ? CONTRIBUTIONS.filter((c) => c.chamaId === activeChamaId) : CONTRIBUTIONS;
-  const chamaTxns = activeChamaId ? transactions.filter((t) => t.chamaId === activeChamaId) : transactions;
+  const members = useChamaStore((s) => s.members);
+  const { user } = useAuth();
+
+  const myMemberRecords = members.filter((m) => m.userId === user?.id);
+  const myChamaIds = new Set(myMemberRecords.map((m) => m.chamaId));
+
+  const chamaContribs = useMemo(() => {
+    let filtered = CONTRIBUTIONS.filter((c) => myChamaIds.has(c.chamaId));
+    if (activeChamaId) filtered = filtered.filter((c) => c.chamaId === activeChamaId);
+    return filtered;
+  }, [myChamaIds, activeChamaId]);
+
+  const chamaTxns = useMemo(() => {
+    let filtered = transactions.filter((t) => t.chamaId != null && myChamaIds.has(t.chamaId));
+    if (activeChamaId) filtered = filtered.filter((t) => t.chamaId === activeChamaId);
+    return filtered;
+  }, [transactions, myChamaIds, activeChamaId]);
+
+  const activeChama = activeChamaId ? chamas.find((c) => c.id === activeChamaId) : null;
   const { page, totalPages, paginated, goToPage } = usePagination(chamaTxns.slice(0, 200), 8);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  if (myChamaIds.size === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Treasury</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Monitor contributions, track payments, and manage chama finances.</p>
+        </div>
+        <EmptyState
+          icon={Wallet}
+          title="No chamas yet"
+          description="Join or create a chama to see treasury."
+          actionLabel="View Chamas"
+          onAction={() => window.location.href = "/chamas"}
+        />
+      </div>
+    );
+  }
 
   const filteredContributions = chamaContribs.filter((c) => {
     const matchesSearch = c.memberName.toLowerCase().includes(query.toLowerCase());
@@ -143,7 +179,7 @@ export default function TreasuryPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Treasury</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{activeChama ? `Finances for ${activeChama.name}` : "Monitor contributions, track payments, and manage chama finances."}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{activeChama ? `Finances for ${activeChama.name}` : `Manage finances across your ${myChamaIds.size} chama${myChamaIds.size !== 1 ? "s" : ""}`}</p>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" leftIcon={<Download className="h-3.5 w-3.5" />} onClick={() => toast.success("Treasury report exported.")}>

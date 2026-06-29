@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Vote, X } from "lucide-react";
 import { toast } from "sonner";
 import { VoteCard } from "@/components/cards/VoteCard";
@@ -13,18 +13,46 @@ import { useFilter } from "@/hooks/useFilter";
 import { usePagination } from "@/hooks/usePagination";
 import { useChamaStore } from "@/stores/chamaStore";
 import { useMeetingStore } from "@/stores/meetingStore";
-import { useAuthStore } from "@/stores/authStore";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function VotingPage() {
   const { votes, castVote } = useVotes();
   const activeChamaId = useChamaStore((s) => s.activeChamaId);
   const chamas = useChamaStore((s) => s.chamas);
+  const members = useChamaStore((s) => s.members);
+  const { user } = useAuth();
   const addVote = useMeetingStore((s) => s.addVote);
-  const user = useAuthStore((s) => s.user);
-  const activeChama = chamas.find((c) => c.id === activeChamaId);
-  const displayVotes = activeChamaId ? votes.filter((v) => v.chamaId === activeChamaId) : votes;
+
+  const myMemberRecords = members.filter((m) => m.userId === user?.id);
+  const myChamaIds = new Set(myMemberRecords.map((m) => m.chamaId));
+
+  const displayVotes = useMemo(() => {
+    let filtered = votes.filter((v) => myChamaIds.has(v.chamaId));
+    if (activeChamaId) filtered = filtered.filter((v) => v.chamaId === activeChamaId);
+    return filtered;
+  }, [votes, myChamaIds, activeChamaId]);
+
+  const activeChama = activeChamaId ? chamas.find((c) => c.id === activeChamaId) : null;
   const { value, setValue, results } = useFilter(displayVotes, "status");
   const { page, totalPages, paginated, goToPage } = usePagination(results, 6);
+
+  if (myChamaIds.size === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Voting</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Create and participate in chama votes.</p>
+        </div>
+        <EmptyState
+          icon={Vote}
+          title="No chamas yet"
+          description="Join or create a chama to participate in voting."
+          actionLabel="View Chamas"
+          onAction={() => window.location.href = "/chamas"}
+        />
+      </div>
+    );
+  }
 
   const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
 
@@ -66,7 +94,7 @@ export default function VotingPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Voting</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{displayVotes.length.toLocaleString()} proposals{activeChama ? ` in ${activeChama.name}` : " across all chamas"} · {displayVotes.filter(v => v.status === "open").length} open for voting</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{displayVotes.length.toLocaleString()} proposal{displayVotes.length !== 1 ? "s" : ""}{activeChama ? ` in ${activeChama.name}` : ` across your ${myChamaIds.size} chama${myChamaIds.size !== 1 ? "s" : ""}`} · {displayVotes.filter(v => v.status === "open").length} open for voting</p>
         </div>
         <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => setModalOpen(true)}>Create Vote</Button>
       </div>

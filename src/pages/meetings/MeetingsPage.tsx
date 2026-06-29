@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { MeetingCard } from "@/components/cards/MeetingCard";
@@ -9,6 +9,7 @@ import { MiniCalendar } from "@/components/common/MiniCalendar";
 import { Pagination } from "@/components/common/Pagination";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Modal } from "@/components/dialogs/Modal";
+import { useAuth } from "@/hooks/useAuth";
 import { useMeetings } from "@/hooks/useMeetings";
 import { useFilter } from "@/hooks/useFilter";
 import { usePagination } from "@/hooks/usePagination";
@@ -19,11 +20,40 @@ export default function MeetingsPage() {
   const meetings = useMeetings();
   const activeChamaId = useChamaStore((s) => s.activeChamaId);
   const chamas = useChamaStore((s) => s.chamas);
+  const members = useChamaStore((s) => s.members);
+  const { user } = useAuth();
   const addMeeting = useMeetingStore((s) => s.addMeeting);
-  const activeChama = chamas.find((c) => c.id === activeChamaId);
-  const displayMeetings = activeChamaId ? meetings.filter((m) => m.chamaId === activeChamaId) : meetings;
+
+  const myMemberRecords = members.filter((m) => m.userId === user?.id);
+  const myChamaIds = new Set(myMemberRecords.map((m) => m.chamaId));
+
+  const displayMeetings = useMemo(() => {
+    let filtered = meetings.filter((m) => myChamaIds.has(m.chamaId));
+    if (activeChamaId) filtered = filtered.filter((m) => m.chamaId === activeChamaId);
+    return filtered;
+  }, [meetings, myChamaIds, activeChamaId]);
+
+  const activeChama = activeChamaId ? chamas.find((c) => c.id === activeChamaId) : null;
   const { value, setValue, results } = useFilter(displayMeetings, "status");
   const { page, totalPages, paginated, goToPage } = usePagination(results, 6);
+
+  if (myChamaIds.size === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meetings</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Schedule and manage chama meetings.</p>
+        </div>
+        <EmptyState
+          icon={Calendar}
+          title="No chamas yet"
+          description="Join or create a chama to see meetings."
+          actionLabel="View Chamas"
+          onAction={() => window.location.href = "/chamas"}
+        />
+      </div>
+    );
+  }
 
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ title: "", date: "", time: "", location: "" });
@@ -42,7 +72,7 @@ export default function MeetingsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meetings</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{displayMeetings.length.toLocaleString()} meetings in {activeChama?.name ?? "All Chamas"}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{displayMeetings.length.toLocaleString()} meeting{displayMeetings.length !== 1 ? "s" : ""}{activeChama ? ` in ${activeChama.name}` : ` across your ${myChamaIds.size} chama${myChamaIds.size !== 1 ? "s" : ""}`}</p>
         </div>
         <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => setModalOpen(true)}>Schedule Meeting</Button>
       </div>

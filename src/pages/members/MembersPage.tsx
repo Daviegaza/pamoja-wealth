@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { UserPlus, Users, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { MemberCard } from "@/components/cards/MemberCard";
@@ -8,6 +8,7 @@ import { Pagination } from "@/components/common/Pagination";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Modal } from "@/components/dialogs/Modal";
 import { useChamaStore } from "@/stores/chamaStore";
+import { useAuth } from "@/hooks/useAuth";
 import { useSearch } from "@/hooks/useSearch";
 import { usePagination } from "@/hooks/usePagination";
 
@@ -15,10 +16,38 @@ export default function MembersPage() {
   const members = useChamaStore((s) => s.members);
   const activeChamaId = useChamaStore((s) => s.activeChamaId);
   const chamas = useChamaStore((s) => s.chamas);
-  const activeChama = chamas.find((c) => c.id === activeChamaId);
-  const displayMembers = activeChamaId ? members.filter((m) => m.chamaId === activeChamaId) : members;
+  const { user } = useAuth();
+
+  const myMemberRecords = members.filter((m) => m.userId === user?.id);
+  const myChamaIds = new Set(myMemberRecords.map((m) => m.chamaId));
+
+  const displayMembers = useMemo(() => {
+    let filtered = members.filter((m) => myChamaIds.has(m.chamaId));
+    if (activeChamaId) filtered = filtered.filter((m) => m.chamaId === activeChamaId);
+    return filtered;
+  }, [members, myChamaIds, activeChamaId]);
+
+  const activeChama = activeChamaId ? chamas.find((c) => c.id === activeChamaId) : null;
   const { query, setQuery, results } = useSearch(displayMembers, ["fullName", "role"]);
   const { page, totalPages, paginated, goToPage } = usePagination(results, 12);
+
+  if (myChamaIds.size === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Members</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">View all members in your chamas.</p>
+        </div>
+        <EmptyState
+          icon={Users}
+          title="No chamas yet"
+          description="Join or create a chama to see members."
+          actionLabel="View Chamas"
+          onAction={() => window.location.href = "/chamas"}
+        />
+      </div>
+    );
+  }
 
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
@@ -42,7 +71,7 @@ export default function MembersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Members</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{displayMembers.length.toLocaleString()} members in {activeChama?.name ?? "All Chamas"}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{displayMembers.length.toLocaleString()} member{displayMembers.length !== 1 ? "s" : ""}{activeChama ? ` in ${activeChama.name}` : ` across your ${myChamaIds.size} chama${myChamaIds.size !== 1 ? "s" : ""}`}</p>
         </div>
         <Button leftIcon={<UserPlus className="h-4 w-4" />} onClick={generateInviteCode}>Invite Member</Button>
       </div>

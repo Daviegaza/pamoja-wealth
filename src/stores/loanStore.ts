@@ -6,6 +6,8 @@ import { getMockDatabase } from "@/mock";
 interface LoanState {
   loans: Loan[];
   applyForLoan: (loan: Omit<Loan, "id" | "status" | "amountRepaid">) => void;
+  approveLoan: (id: string) => void;
+  rejectLoan: (id: string) => void;
 }
 
 let onNewTransaction: ((tx: Transaction) => void) | null = null;
@@ -32,6 +34,18 @@ export const useLoanStore = create<LoanState>()(
           balanceAfter: 0,
         });
       },
+      approveLoan: (id) =>
+        set({
+          loans: get().loans.map((l) =>
+            l.id === id ? { ...l, status: "approved" as const, approvedDate: new Date().toISOString() } : l
+          ),
+        }),
+      rejectLoan: (id) =>
+        set({
+          loans: get().loans.map((l) =>
+            l.id === id ? { ...l, status: "rejected" as const } : l
+          ),
+        }),
     }),
     { name: "pamoja-loans" }
   )
