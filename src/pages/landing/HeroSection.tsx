@@ -97,15 +97,25 @@ export function HeroSection() {
         >
           <Link to="/register">
             <Button size="xl" variant="premium" rightIcon={<ArrowRight className="h-5 w-5" />}>
-              Start Free — It Takes 2 Minutes
+              Start Free Today
             </Button>
           </Link>
           <a href="#how-it-works">
             <Button size="xl" variant="outline" leftIcon={<Play className="h-5 w-5" />}>
-              See How It Works
+              Watch Demo
             </Button>
           </a>
         </motion.div>
+
+        {/* Trust line */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="mt-4 text-xs text-gray-400 dark:text-gray-500 font-medium"
+        >
+          No credit card required &middot; Free for groups up to 15 members
+        </motion.p>
 
         {/* Live Stats */}
         <motion.div

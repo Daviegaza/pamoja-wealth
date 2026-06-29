@@ -8,13 +8,13 @@ import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { useCommandPalette } from "@/hooks/useCommandPalette";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect } from "react";
-import { LayoutDashboard, Users, Wallet, TrendingUp } from "lucide-react";
+import { LayoutDashboard, Users, Wallet, Calendar } from "lucide-react";
 
 const mobileNav = [
   { label: "Home", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Chamas", icon: Users, path: "/chamas" },
   { label: "Wallet", icon: Wallet, path: "/wallet" },
-  { label: "Invest", icon: TrendingUp, path: "/investments" },
+  { label: "Meetings", icon: Calendar, path: "/meetings" },
 ];
 
 const pageVariants = {

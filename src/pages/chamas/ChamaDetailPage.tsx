@@ -1,20 +1,25 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Users, Wallet, Calendar, TrendingUp, ArrowLeft, Settings, CreditCard, Landmark } from "lucide-react";
+import {
+  Users, Wallet, Calendar, TrendingUp, ArrowLeft, Settings,
+  CreditCard, Landmark, Copy, Check, Building2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useChamaStore } from "@/stores/chamaStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useLoans } from "@/hooks/useLoans";
+import { useChatStore } from "@/stores/chatStore";
 import { StatCard } from "@/components/cards/StatCard";
-import { MemberCard } from "@/components/cards/MemberCard";
+import { MemberCard, computeTrustScore } from "@/components/cards/MemberCard";
+import { ChamaChat } from "@/components/common/ChamaChat";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/dialogs/Modal";
-import { Tabs } from "@/components/ui/Tabs";
+import { Tabs, type TabItem } from "@/components/ui/Tabs";
 import { EmptyState } from "@/components/common/EmptyState";
-import { Building2 } from "lucide-react";
+import { getMockDatabase } from "@/mock";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { motion } from "framer-motion";
 import type { Role } from "@/types";
@@ -42,11 +47,34 @@ export default function ChamaDetailPage() {
   // Pending loans for this chama
   const pendingLoans = loans.filter((l) => l.chamaId === id && l.status === "pending");
 
+  // Chat messages for this chama
+  const chatMessages = useChatStore((s) => s.messages);
+  const sendMessage = useChatStore((s) => s.sendMessage);
+
+  // Build set of verified user IDs for trust score computation
+  const dbUsers = getMockDatabase().users;
+  const verifiedUserIds = new Set(dbUsers.filter((u) => u.isVerified).map((u) => u.id));
+
   const [manageOpen, setManageOpen] = useState(false);
   const [editName, setEditName] = useState(chama?.name ?? "");
   const [editDescription, setEditDescription] = useState(chama?.description ?? "");
   const [editContribution, setEditContribution] = useState(String(chama?.monthlyContribution ?? ""));
   const [editLocation, setEditLocation] = useState(chama?.location ?? "");
+
+  // Invite code for sharing
+  const [inviteCode, setInviteCode] = useState("");
+  const [inviteCopied, setInviteCopied] = useState(false);
+
+  useEffect(() => {
+    const code = `PW-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    setInviteCode(code);
+  }, []);
+
+  const copyInviteCode = async () => {
+    await navigator.clipboard.writeText(inviteCode);
+    setInviteCopied(true);
+    toast.success("Invite code copied!");
+  };
 
   if (!chama)
     return (
@@ -87,14 +115,45 @@ export default function ChamaDetailPage() {
     setManageOpen(false);
   };
 
-  const tabs = [
+  const tabs: TabItem[] = [];
+
+  // Chat tab — only for members of this chama
+  if (myMembership) {
+    tabs.push({
+      value: "chat",
+      label: "Chat",
+      content: (
+        <ChamaChat
+          chamaId={id ?? ""}
+          messages={chatMessages.filter((m) => m.chamaId === id)}
+          onSend={(content) => {
+            if (!user) return;
+            sendMessage({
+              chamaId: id ?? "",
+              userId: user.id,
+              userName: user.fullName,
+              userAvatar: user.avatarUrl,
+              content,
+            });
+          }}
+          currentUser={{
+            id: user?.id ?? "",
+            name: user?.fullName ?? "",
+            avatar: user?.avatarUrl ?? "",
+          }}
+        />
+      ),
+    });
+  }
+
+  tabs.push(
     {
       value: "members",
       label: "Members",
       content: (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {members.length > 0 ? members.slice(0, 10).map((m) => (
-            <MemberCard key={m.id} member={m} />
+            <MemberCard key={m.id} member={m} trustScore={computeTrustScore(m, loans, verifiedUserIds.has(m.userId))} />
           )) : (
             <p className="text-sm text-gray-400 col-span-2 py-8 text-center">No members yet.</p>
           )}
@@ -128,10 +187,10 @@ export default function ChamaDetailPage() {
           </div>
         </div>
       ),
-    },
-  ];
+    }
+  );
 
-  // Add management tab for owners/admins
+  // Management tab — only for owners/admins
   if (canManage) {
     tabs.push({
       value: "management",
@@ -181,6 +240,28 @@ export default function ChamaDetailPage() {
           <Button variant="outline" size="sm" leftIcon={<Settings className="h-3.5 w-3.5" />} onClick={openManage}>
             Edit Chama Settings
           </Button>
+
+          {/* Share Invite Section */}
+          <div className="card-hover p-5">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Share Invite</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Share this invite code with new members to join this chama.</p>
+            <div className="flex items-center gap-3 mb-3">
+              <code className="flex-1 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-gray-50 dark:bg-white/[0.03] px-4 py-2 text-sm font-mono font-bold text-brand-600 dark:text-brand-400 tracking-wider select-all">
+                {inviteCode}
+              </code>
+              <Button leftIcon={inviteCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} onClick={copyInviteCode} variant="secondary" size="sm">
+                {inviteCopied ? "Copied" : "Copy"}
+              </Button>
+            </div>
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent("Join my chama on Pamoja Wealth! Use invite code: " + inviteCode)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 transition-colors w-full"
+            >
+              Share via WhatsApp
+            </a>
+          </div>
         </div>
       ),
     });

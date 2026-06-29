@@ -6,9 +6,11 @@ import { getMockDatabase } from "@/mock";
 interface MeetingState {
   meetings: Meeting[];
   votes: Vote[];
+  rsvps: Record<string, { attending: string[]; declined: string[] }>;
   castVote: (voteId: string, optionId: string) => void;
   addMeeting: (data: { chamaId: string; title: string; date: string; time: string; location: string }) => void;
   addVote: (data: { chamaId: string; title: string; description: string; options: string[]; createdBy: string }) => void;
+  rsvp: (meetingId: string, userId: string, status: "attending" | "declined") => void;
 }
 
 export const useMeetingStore = create<MeetingState>()(
@@ -16,6 +18,7 @@ export const useMeetingStore = create<MeetingState>()(
     (set, get) => ({
       meetings: getMockDatabase().meetings,
       votes: getMockDatabase().votes,
+      rsvps: {},
       castVote: (voteId, optionId) =>
         set({
           votes: get().votes.map((v) =>
@@ -61,6 +64,37 @@ export const useMeetingStore = create<MeetingState>()(
             },
             ...get().votes,
           ],
+        }),
+      rsvp: (meetingId, userId, status) =>
+        set((state) => {
+          const prev = state.rsvps[meetingId] ?? { attending: [], declined: [] };
+          const wasAttending = prev.attending.includes(userId);
+          let attendeesDelta = 0;
+
+          if (status === "attending") {
+            if (!wasAttending) attendeesDelta = 1;
+          } else {
+            if (wasAttending) attendeesDelta = -1;
+          }
+
+          return {
+            rsvps: {
+              ...state.rsvps,
+              [meetingId]: {
+                attending:
+                  status === "attending"
+                    ? [...prev.attending.filter((id) => id !== userId), userId]
+                    : prev.attending.filter((id) => id !== userId),
+                declined:
+                  status === "declined"
+                    ? [...prev.declined.filter((id) => id !== userId), userId]
+                    : prev.declined.filter((id) => id !== userId),
+              },
+            },
+            meetings: state.meetings.map((m) =>
+              m.id === meetingId ? { ...m, attendeesCount: m.attendeesCount + attendeesDelta } : m
+            ),
+          };
         }),
     }),
     { name: "pamoja-meetings" }

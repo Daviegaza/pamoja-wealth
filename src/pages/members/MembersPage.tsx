@@ -88,13 +88,23 @@ export default function MembersPage() {
       <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} />
 
       <Modal isOpen={inviteModalOpen} onClose={() => setInviteModalOpen(false)} title="Invite Code" description="Share this code with a new member to join your chama.">
-        <div className="flex items-center gap-3">
-          <code className="flex-1 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-gray-50 dark:bg-white/[0.03] px-4 py-3 text-lg font-mono font-bold text-brand-600 dark:text-brand-400 tracking-wider select-all">
-            {inviteCode}
-          </code>
-          <Button leftIcon={copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} onClick={copyToClipboard} variant="secondary" size="sm">
-            {copied ? "Copied" : "Copy"}
-          </Button>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <code className="flex-1 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-gray-50 dark:bg-white/[0.03] px-4 py-3 text-lg font-mono font-bold text-brand-600 dark:text-brand-400 tracking-wider select-all">
+              {inviteCode}
+            </code>
+            <Button leftIcon={copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} onClick={copyToClipboard} variant="secondary" size="sm">
+              {copied ? "Copied" : "Copy"}
+            </Button>
+          </div>
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent("Join my chama on Pamoja Wealth! Use invite code: " + inviteCode)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 transition-colors w-full"
+          >
+            Share via WhatsApp
+          </a>
         </div>
       </Modal>
     </div>

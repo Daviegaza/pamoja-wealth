@@ -2,6 +2,7 @@ import { HeroSection } from "./HeroSection";
 import { StatsSection } from "./StatsSection";
 import { HowItWorks } from "./HowItWorks";
 import { FeaturesSection } from "./FeaturesSection";
+import { ComparisonSection } from "./ComparisonSection";
 import { PartnersSection } from "./PartnersSection";
 import { TestimonialsSection } from "./TestimonialsSection";
 import { PricingSection } from "./PricingSection";
@@ -15,6 +16,7 @@ export default function LandingPage() {
       <StatsSection />
       <HowItWorks />
       <FeaturesSection />
+      <ComparisonSection />
       <PartnersSection />
       <TestimonialsSection />
       <PricingSection />

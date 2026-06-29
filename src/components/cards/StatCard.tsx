@@ -23,7 +23,7 @@ export function StatCard({
   const positive = (change ?? 0) >= 0;
 
   return (
-    <motion.div whileHover={{ y: -3 }} className={cn("card-base p-5 group cursor-default", className)}>
+    <motion.div whileHover={{ y: -3 }} className={cn("card-base p-5 group cursor-default relative overflow-hidden before:absolute before:top-0 before:left-4 before:right-4 before:h-0.5 before:rounded-full before:bg-gradient-to-r before:from-brand-500 before:to-transparent", className)}>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wide uppercase">{label}</p>

@@ -23,6 +23,8 @@ export default function MeetingsPage() {
   const members = useChamaStore((s) => s.members);
   const { user } = useAuth();
   const addMeeting = useMeetingStore((s) => s.addMeeting);
+  const rsvp = useMeetingStore((s) => s.rsvp);
+  const rsvps = useMeetingStore((s) => s.rsvps);
 
   const myMemberRecords = members.filter((m) => m.userId === user?.id);
   const myChamaIds = new Set(myMemberRecords.map((m) => m.chamaId));
@@ -94,12 +96,42 @@ export default function MeetingsPage() {
             {paginated.length === 0 ? (
               <EmptyState icon={Calendar} title="No meetings scheduled" description="Schedule your first meeting." actionLabel="Schedule Meeting" onAction={() => setModalOpen(true)} />
             ) : (
-              paginated.map((m) => <MeetingCard key={m.id} meeting={m} />)
+              paginated.map((m) => (
+                <MeetingCard
+                  key={m.id}
+                  meeting={m}
+                  onRsvp={(status) => {
+                    if (!user?.id) return;
+                    rsvp(m.id, user.id, status);
+                    toast.success(status === "attending" ? `You're attending ${m.title}` : `You've declined ${m.title}`);
+                  }}
+                  userRsvp={
+                    user?.id
+                      ? rsvps[m.id]?.attending.includes(user.id)
+                        ? "attending"
+                        : rsvps[m.id]?.declined.includes(user.id)
+                          ? "declined"
+                          : null
+                      : null
+                  }
+                />
+              ))
             )}
           </div>
           <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} />
         </div>
-        <MiniCalendar highlightDates={displayMeetings.filter((m) => m.status === "scheduled").map((m) => m.date)} />
+        <MiniCalendar
+          highlightDates={
+            user?.id
+              ? displayMeetings
+                  .filter((m) => {
+                    const meetingRsvp = rsvps[m.id];
+                    return meetingRsvp ? meetingRsvp.attending.includes(user.id!) : m.status === "scheduled";
+                  })
+                  .map((m) => m.date)
+              : displayMeetings.filter((m) => m.status === "scheduled").map((m) => m.date)
+          }
+        />
       </div>
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Schedule Meeting" description="Fill in the details to schedule a new meeting.">

@@ -72,6 +72,26 @@ export default function TreasuryPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  const exportCSV = () => {
+    const headers = ["Name", "Amount", "Month", "Status", "Method"];
+    const escape = (val: string) => {
+      if (val.includes(",") || val.includes('"') || val.includes("\n")) return `"${val.replace(/"/g, '""')}"`;
+      return val;
+    };
+    const rows = filteredContributions.map((c) => [escape(c.memberName), c.amount.toString(), escape(c.month), c.status, c.method]);
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `treasury-report-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("Report exported as CSV");
+  };
+
   if (myChamaIds.size === 0) {
     return (
       <div className="space-y-6">
@@ -182,7 +202,7 @@ export default function TreasuryPage() {
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{activeChama ? `Finances for ${activeChama.name}` : `Manage finances across your ${myChamaIds.size} chama${myChamaIds.size !== 1 ? "s" : ""}`}</p>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" leftIcon={<Download className="h-3.5 w-3.5" />} onClick={() => toast.success("Treasury report exported.")}>
+          <Button size="sm" variant="outline" leftIcon={<Download className="h-3.5 w-3.5" />} onClick={exportCSV}>
             Export Report
           </Button>
           <Button size="sm" variant="premium" leftIcon={<FileText className="h-3.5 w-3.5" />} onClick={() => toast.success("Statement generated.")}>

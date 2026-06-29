@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { motion, easeOut } from "framer-motion";
 import {
   Calendar, CreditCard, TrendingUp, Wallet, Building2,
-  Activity, Vote, ArrowDownToLine, Send, UserPlus, Search,
+  Activity, Vote, ArrowDownToLine, Send, UserPlus, Search, Target, Trophy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { StatCard } from "@/components/cards/StatCard";
@@ -30,7 +30,11 @@ import { useMeetingStore } from "@/stores/meetingStore";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getMockDatabase } from "@/mock";
 import { formatCurrency } from "@/lib/utils";
-import type { Role } from "@/types";
+import { MemberHealthCard } from "@/components/common/MemberHealthCard";
+import { AchievementBadge, getAchievements } from "@/components/common/AchievementBadge";
+import { GoalTracker } from "@/components/common/GoalTracker";
+import { useGoalStore } from "@/stores/goalStore";
+import type { Role, Member, Loan } from "@/types";
 
 const db = getMockDatabase();
 
@@ -48,6 +52,55 @@ const ROLE_RANK: Record<Role, number> = {
   member: 0, secretary: 1, treasurer: 2, chairperson: 3, admin: 4, owner: 5, super_admin: 6,
 };
 
+function computeHealthScore(
+  member: Member,
+  userId: string,
+  loans: Loan[],
+  wallet: { balance: number },
+  rsvps: Record<string, { attending: string[]; declined: string[] }>
+): { score: number; label: string; details: { label: string; value: string; score: number }[] } {
+  const myLoans = loans.filter((l) => l.borrowerId === userId);
+  const completedLoans = myLoans.filter((l) => l.status === "completed");
+
+  const streak = member.contributionStreak;
+  const contributionScore = streak >= 12 ? 25 : streak >= 6 ? 20 : streak >= 3 ? 15 : streak >= 1 ? 8 : 0;
+  const contributionLabel = streak >= 12 ? "12+ months" : `${streak} month${streak !== 1 ? "s" : ""}`;
+
+  const loanScore =
+    myLoans.length === 0
+      ? 15
+      : Math.round((completedLoans.length / myLoans.length) * 25);
+  const loanLabel =
+    myLoans.length === 0
+      ? "No loans"
+      : `${completedLoans.length}/${myLoans.length} repaid`;
+
+  const totalContribs = member.totalContributions;
+  const savingsRatio = totalContribs > 0
+    ? Math.min(totalContribs / (totalContribs + wallet.balance), 1)
+    : 0;
+  const savingsScore = Math.round(savingsRatio * 25);
+  const savingsLabel = totalContribs > 0
+    ? `${Math.round(savingsRatio * 100)}% saved`
+    : "No contributions";
+
+  const attendedCount = Object.values(rsvps).filter((r) => r.attending.includes(userId)).length;
+  const meetingScore = attendedCount >= 5 ? 25 : attendedCount >= 3 ? 20 : attendedCount >= 1 ? 12 : 0;
+  const meetingLabel = attendedCount >= 1 ? `${attendedCount} meeting${attendedCount !== 1 ? "s" : ""}` : "None";
+
+  const total = Math.min(contributionScore + loanScore + savingsScore + meetingScore, 100);
+  return {
+    score: total,
+    label: "Financial Health",
+    details: [
+      { label: "Contribution Consistency", value: contributionLabel, score: contributionScore },
+      { label: "Loan Repayment", value: loanLabel, score: loanScore },
+      { label: "Savings Rate", value: savingsLabel, score: savingsScore },
+      { label: "Meeting Attendance", value: meetingLabel, score: meetingScore },
+    ],
+  };
+}
+
 export default function DashboardPage() {
   const analytics = useAnalytics();
   const meetings = useMeetings();
@@ -56,9 +109,14 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const chamas = useChamaStore((s) => s.chamas);
   const storeMembers = useChamaStore((s) => s.members);
-  const { votes, castVote } = useMeetingStore();
+  const { votes, castVote, rsvps } = useMeetingStore();
   const { wallet, deposit } = useWalletStore();
   const { can } = usePermissions();
+  const { goals, addGoal, deleteGoal } = useGoalStore();
+  const [goalOpen, setGoalOpen] = useState(false);
+  const [goalName, setGoalName] = useState("");
+  const [goalTarget, setGoalTarget] = useState("");
+  const [goalDate, setGoalDate] = useState("");
 
   if (!user) {
     return (
@@ -82,6 +140,17 @@ export default function DashboardPage() {
   const myMemberships = storeMembers.filter((m) => m.userId === user?.id);
   const myChamas = chamas.filter((c) => myMemberships.some((m) => m.chamaId === c.id));
   const myChamaIds = new Set(myChamas.map((c) => c.id));
+
+  const primaryMember = myMemberships[0];
+  const healthData = useMemo(() => {
+    if (!primaryMember) return null;
+    return computeHealthScore(primaryMember, user.id, loans, wallet, rsvps);
+  }, [primaryMember, user.id, loans, wallet, rsvps]);
+
+  const achievements = useMemo(() => {
+    if (!primaryMember || !healthData) return [];
+    return getAchievements(primaryMember, user.id, loans, storeMembers, rsvps);
+  }, [primaryMember, user.id, loans, storeMembers, rsvps, healthData]);
 
   const { highestRole, highestRoleLabel } = useMemo(() => {
     if (myMemberships.length === 0) return { highestRole: "member" as Role, highestRoleLabel: "New Member" };
@@ -269,6 +338,29 @@ export default function DashboardPage() {
             <ChartCard title="Cash Flow"><CashFlowChart data={analytics.cashFlow} /></ChartCard>
           </div>
           <div className="space-y-6">
+            {healthData && (
+              <MemberHealthCard
+                healthScore={healthData.score}
+                label={healthData.label}
+                details={healthData.details}
+              />
+            )}
+
+            {/* Achievements */}
+            <div className="card-hover p-5">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-amber-500" />
+                Achievements
+              </h3>
+              <div className="grid grid-cols-1 gap-2">
+                {achievements.slice(0, 4).map((a) => (
+                  <AchievementBadge key={a.label} icon={a.icon} label={a.label} earned={a.earned} date={a.date} />
+                ))}
+              </div>
+            </div>
+
+            <GoalTracker goals={goals} onAdd={() => setGoalOpen(true)} onDelete={deleteGoal} />
+
             <AIInsightCard insights={[
               "Your contributions are 8.4% above the platform average.",
               `You have ${openVotes.length} open vote${openVotes.length !== 1 ? "s" : ""} to participate in.`,
@@ -276,6 +368,60 @@ export default function DashboardPage() {
             ]} />
 
             {/* My Chamas quick list */}
+            <div className="card-hover p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2"><Building2 className="h-4 w-4 text-brand-500" /> My Chamas</h3>
+                <Link to="/chamas" className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline">View all</Link>
+              </div>
+              <div className="space-y-2">
+                {myChamas.slice(0, 4).map((c) => {
+                  const memberRecord = myMemberships.find((m) => m.chamaId === c.id);
+                  return (
+                    <Link key={c.id} to={`/chamas/${c.id}`} className="flex items-center justify-between rounded-lg p-2 hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors">
+                      <div className="min-w-0">
+                        <span className="text-sm font-medium text-gray-900 dark:text-white truncate block">{c.name}</span>
+                        {memberRecord && (
+                          <span className="text-[10px] text-gray-400 capitalize">{memberRecord.role.replace("_", " ")}</span>
+                        )}
+                      </div>
+                      <Badge variant={c.status === "active" ? "success" : "default"} className="text-[10px] capitalize shrink-0 ml-2">{c.status}</Badge>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Health & Goals section for non-elevated members */}
+      {!isElevated && healthData && (
+        <motion.div variants={fadeUp} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <MemberHealthCard
+            healthScore={healthData.score}
+            label={healthData.label}
+            details={healthData.details}
+          />
+          <div className="space-y-4">
+            <AIInsightCard insights={[
+              "Your contributions are 8.4% above the platform average.",
+              `You have ${openVotes.length} open vote${openVotes.length !== 1 ? "s" : ""} to participate in.`,
+              "Keep up the momentum — regular contributions build your financial health.",
+            ]} />
+            <div className="card-hover p-5">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-amber-500" />
+                Achievements
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {achievements.slice(0, 4).map((a) => (
+                  <AchievementBadge key={a.label} icon={a.icon} label={a.label} earned={a.earned} date={a.date} />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="space-y-6">
+            <GoalTracker goals={goals} onAdd={() => setGoalOpen(true)} onDelete={deleteGoal} />
             <div className="card-hover p-5">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2"><Building2 className="h-4 w-4 text-brand-500" /> My Chamas</h3>
@@ -378,6 +524,31 @@ export default function DashboardPage() {
               </div>
             </button>
           ))}
+        </div>
+      </Modal>
+
+      {/* ===== ADD GOAL MODAL ===== */}
+      <Modal isOpen={goalOpen} onClose={() => setGoalOpen(false)} title="Add Savings Goal" description="Set a new savings goal to track your progress.">
+        <div className="space-y-4">
+          <Input label="Goal Name" value={goalName} onChange={(e) => setGoalName(e.target.value)} placeholder="e.g. Emergency Fund" />
+          <Input label="Target Amount (KES)" type="number" value={goalTarget} onChange={(e) => setGoalTarget(e.target.value)} placeholder="How much do you want to save?" />
+          <Input label="Target Date" type="date" value={goalDate} onChange={(e) => setGoalDate(e.target.value)} />
+          <Button className="w-full" variant="premium" size="lg" onClick={() => {
+            if (!goalName || !goalTarget || !goalDate) { toast.error("Please fill in all fields"); return; }
+            addGoal({
+              userId: user?.id ?? "usr_1",
+              name: goalName,
+              targetAmount: parseInt(goalTarget),
+              targetDate: goalDate,
+            });
+            toast.success(`Goal "${goalName}" created!`);
+            setGoalOpen(false);
+            setGoalName("");
+            setGoalTarget("");
+            setGoalDate("");
+          }} leftIcon={<Target className="h-4 w-4" />}>
+            Create Goal
+          </Button>
         </div>
       </Modal>
     </motion.div>
