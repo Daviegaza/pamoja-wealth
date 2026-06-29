@@ -13,6 +13,7 @@ import { CashFlowChart } from "@/components/charts/CashFlowChart";
 import { AIInsightCard } from "@/components/common/AIInsightCard";
 import { MiniCalendar } from "@/components/common/MiniCalendar";
 import { ActivityTimeline } from "@/components/common/ActivityTimeline";
+import { SkeletonLoader } from "@/components/common/SkeletonLoader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/dialogs/Modal";
@@ -46,8 +47,6 @@ const fadeUp = {
 const ROLE_RANK: Record<Role, number> = {
   member: 0, secretary: 1, treasurer: 2, chairperson: 3, admin: 4, owner: 5, super_admin: 6,
 };
-
-import { SkeletonLoader } from "@/components/common/SkeletonLoader";
 
 export default function DashboardPage() {
   const analytics = useAnalytics();

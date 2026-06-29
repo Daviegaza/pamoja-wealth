@@ -5,8 +5,14 @@ import { PRIMARY_NAV, SECONDARY_NAV } from "@/constants/nav";
 import { useUIStore } from "@/stores/uiStore";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
+import { useChamaStore } from "@/stores/chamaStore";
 import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/utils";
+import type { Role } from "@/types";
+
+const ROLE_RANK: Record<Role, number> = {
+  member: 0, secretary: 1, treasurer: 2, chairperson: 3, admin: 4, owner: 5, super_admin: 6,
+};
 
 function NavSection({ items, collapsed }: { items: typeof PRIMARY_NAV; collapsed: boolean }) {
   const { can } = usePermissions();
@@ -59,6 +65,18 @@ function NavSection({ items, collapsed }: { items: typeof PRIMARY_NAV; collapsed
 export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
   const { user, logout } = useAuth();
+  const storeMembers = useChamaStore((s) => s.members);
+
+  const displayRole = ((): string => {
+    if (!user) return "Member";
+    const myMemberships = storeMembers.filter((m) => m.userId === user.id);
+    if (myMemberships.length === 0) return "New Member";
+    let best: Role = "member";
+    for (const m of myMemberships) {
+      if (ROLE_RANK[m.role] > ROLE_RANK[best]) best = m.role;
+    }
+    return best.replace("_", " ");
+  })();
 
   return (
     <motion.aside
@@ -100,7 +118,7 @@ export function Sidebar() {
               <div className="flex-1 min-w-0">
                 <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{user.fullName}</p>
                 <p className="truncate text-xs text-gray-400 dark:text-gray-500 capitalize">
-                  {user.role.replace("_", " ")}
+                  {displayRole}
                 </p>
               </div>
             )}

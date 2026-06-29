@@ -5,16 +5,35 @@ import { PRIMARY_NAV, SECONDARY_NAV } from "@/constants/nav";
 import { useUIStore } from "@/stores/uiStore";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useChamaStore } from "@/stores/chamaStore";
 import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/utils";
+import type { Role } from "@/types";
+
+const ROLE_RANK: Record<Role, number> = {
+  member: 0, secretary: 1, treasurer: 2, chairperson: 3, admin: 4, owner: 5, super_admin: 6,
+};
 
 export function MobileSidebar() {
   const { mobileMenuOpen, setMobileMenuOpen } = useUIStore();
   const { user, logout } = useAuth();
   const { can } = usePermissions();
+  const storeMembers = useChamaStore((s) => s.members);
   const allNav = [...PRIMARY_NAV, ...SECONDARY_NAV].filter(
     (item) => !item.permission || can(item.permission)
   );
+
+  // Derive display role from chama memberships, not global user.role
+  const displayRole = ((): string => {
+    if (!user) return "Member";
+    const myMemberships = storeMembers.filter((m) => m.userId === user.id);
+    if (myMemberships.length === 0) return "New Member";
+    let best: Role = "member";
+    for (const m of myMemberships) {
+      if (ROLE_RANK[m.role] > ROLE_RANK[best]) best = m.role;
+    }
+    return best.replace("_", " ");
+  })();
 
   return (
     <AnimatePresence>
@@ -81,7 +100,7 @@ export function MobileSidebar() {
                   <Avatar src={user.avatarUrl} name={user.fullName} size="md" status="online" />
                   <div>
                     <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{user.fullName}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 capitalize">{user.role.replace("_", " ")}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 capitalize">{displayRole}</p>
                   </div>
                 </div>
                 <button
