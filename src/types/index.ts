@@ -307,3 +307,189 @@ export interface PrivacySettings {
   showInvestmentDetails: boolean;
   profileVisibility: "public" | "chama_only" | "private";
 }
+
+// ===== Polymorphic Group Domain (chama + harambee + pot + savings_loan) =====
+//
+// The legacy `Chama` interface above is retained for backwards compatibility.
+// New code should target the `Group` discriminated union below. See
+// docs/RESEARCH_DOSSIER.md §1 (THE GAP) and §5 for the design rationale —
+// one identity, one rule engine, four product surfaces.
+
+export type GroupKind = "chama" | "harambee" | "pot" | "savings_loan";
+export type GroupVisibility = "public" | "private" | "invite_only";
+export type GroupStatus = "draft" | "active" | "dormant" | "archived" | "completed";
+
+export interface BaseGroup {
+  id: string;
+  kind: GroupKind;
+  visibility: GroupVisibility;
+  status: GroupStatus;
+  name: string;
+  slug: string;
+  description: string;
+  logoUrl?: string;
+  coverImageUrl?: string;
+  location?: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+  memberCount: number;
+  totalFunds: number;
+  paybillAccountNumber?: string; // e.g. "HAR-7K2L9"
+  requireKyc: boolean;
+  allowDiscovery: boolean;
+}
+
+export interface ChamaGroup extends BaseGroup {
+  kind: "chama";
+  category: ChamaCategory;
+  entryDeposit?: number;
+  monthlyContribution: number;
+  maxMembers?: number;
+  nextMeetingDate?: string;
+  growthRate?: number;
+  bylaws?: RuleDoc;
+}
+
+export interface HarambeeGroup extends BaseGroup {
+  kind: "harambee";
+  cause: "medical" | "wedding" | "funeral" | "education" | "emergency" | "community" | "other";
+  targetAmount: number;
+  raisedAmount: number;
+  deadline?: string;
+  beneficiaryName?: string;
+  organizerVerified: boolean;
+}
+
+export interface PotGroup extends BaseGroup {
+  kind: "pot";
+  purpose: string; // "Sarah's bday gift", "Office samosas", etc.
+  targetAmount?: number;
+  raisedAmount: number;
+  splitMode: "equal" | "custom" | "open";
+}
+
+export interface SavingsLoanGroup extends BaseGroup {
+  kind: "savings_loan";
+  category: ChamaCategory;
+  monthlyContribution: number;
+  loansEnabled: true;
+  interestRateAnnual: number;
+  bylaws?: RuleDoc;
+}
+
+export type Group = ChamaGroup | HarambeeGroup | PotGroup | SavingsLoanGroup;
+
+// ===== Rule Engine =====
+//
+// Configurable rule engine — the headline differentiator per
+// docs/RESEARCH_DOSSIER.md §1 #1 and §6.10. Rule documents are versioned,
+// hash-chained, and (for chamas/savings_loan) compiled either by a human or
+// by Claude Sonnet from natural-language source text.
+
+export interface ContributionRule {
+  amountKes: number;
+  cadence: "weekly" | "biweekly" | "monthly" | "quarterly" | "annual";
+  dueDay: number; // 1-31 for monthly, 1-7 for weekly (Mon=1)
+  graceDays: number;
+}
+
+export interface EligibilityRule {
+  minAge?: number;
+  maxAge?: number;
+  genders?: ("male" | "female" | "any")[];
+  location?: string; // free text region constraint
+  employer?: string;
+  custom?: string; // free-text additional criteria
+}
+
+export interface VettingRule {
+  sponsorRequired: boolean;
+  sponsorCount: number;
+  voteThresholdPct: number; // 0-100
+  manualReviewByRoles: Role[];
+}
+
+export interface VotingRule {
+  quorumPct: number;
+  passThresholdPct: number;
+  weightedByContribution: boolean;
+  weightedByTenureMonths: boolean;
+}
+
+export interface PayoutOrder {
+  mode: "rotational" | "by_need" | "by_vote" | "lump_sum_at_term";
+  rotationSeed?: string[]; // ordered user ids
+}
+
+export interface ExitRule {
+  trigger: {
+    missedContributions?: number;
+    window?: "rolling-6m" | "rolling-12m" | "absolute";
+    manual?: boolean;
+  };
+  penalty: {
+    forfeitEntryBond?: boolean;
+    forfeitPctOfShares?: number;
+    refundDelayDays?: number;
+  };
+  proRated: boolean;
+}
+
+export interface DividendRule {
+  policy: "equal" | "by_shares" | "by_contribution" | "by_tenure" | "reinvest";
+  payoutCadence: "monthly" | "quarterly" | "annual" | "at_term";
+}
+
+export interface EntryDepositRule {
+  amountKes: number;
+  refundableOnExit: boolean;
+  payableIn: number; // installments
+}
+
+export interface RuleDoc {
+  version: number;
+  entryDeposit?: EntryDepositRule;
+  contribution: ContributionRule;
+  eligibility?: EligibilityRule;
+  vetting?: VettingRule;
+  voting: VotingRule;
+  payoutOrder?: PayoutOrder;
+  exit?: ExitRule;
+  dividend?: DividendRule;
+  // user-defined extension slot
+  custom?: Record<string, unknown>;
+}
+
+export interface ChamaRuleVersion {
+  id: string;
+  chamaId: string;
+  version: number;
+  ruleDoc: RuleDoc;
+  sourceText?: string; // raw NL the secretary typed
+  compiledBy: "human" | "claude-sonnet-4-5";
+  effectiveAt: string;
+  supersededAt?: string;
+  createdById: string;
+  approvedByIds: string[];
+  prevHash?: string; // hex
+  hash: string; // hex
+  createdAt: string;
+}
+
+// ===== Donations (harambee + pot use case) =====
+
+export interface Donation {
+  id: string;
+  groupId: string;
+  donorUserId?: string; // null when anonymous
+  donorName?: string;
+  donorEmail?: string;
+  donorPhone?: string;
+  amount: number;
+  message?: string;
+  isAnonymous: boolean;
+  paymentMethod: PaymentMethodType;
+  reference: string;
+  createdAt: string;
+}

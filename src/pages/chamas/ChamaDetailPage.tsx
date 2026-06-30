@@ -2,10 +2,13 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   Users, Wallet, Calendar, TrendingUp, ArrowLeft, Settings,
-  CreditCard, Landmark, Copy, Check, Building2,
+  CreditCard, Landmark, Copy, Check, Building2, HandCoins,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ContributeModal } from "@/components/payments/ContributeModal";
+import { useGroupStore } from "@/stores/groupStore";
 import { useChamaStore } from "@/stores/chamaStore";
+import type { MpesaAccount } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useLoans } from "@/hooks/useLoans";
 import { useChatStore } from "@/stores/chatStore";
@@ -56,6 +59,14 @@ export default function ChamaDetailPage() {
   const verifiedUserIds = new Set(dbUsers.filter((u) => u.isVerified).map((u) => u.id));
 
   const [manageOpen, setManageOpen] = useState(false);
+  const [contributeOpen, setContributeOpen] = useState(false);
+  // Resolve the polymorphic Group counterpart for ContributeModal. If none in
+  // the group store (legacy chama-only data), synthesize a minimal stub.
+  const groupForPayment = useGroupStore((s) => (id ? s.byId(id) : undefined));
+  // Mock single linked M-Pesa account — replace with wallet store / auth.
+  const userMpesa: MpesaAccount[] = [
+    { id: "mp_1", userId: user?.id ?? "usr_1", phoneNumber: "+254712345678", isDefault: true, isVerified: true, lastUsed: new Date().toISOString() },
+  ];
   const [editName, setEditName] = useState(chama?.name ?? "");
   const [editDescription, setEditDescription] = useState(chama?.description ?? "");
   const [editContribution, setEditContribution] = useState(String(chama?.monthlyContribution ?? ""));
@@ -285,6 +296,16 @@ export default function ChamaDetailPage() {
           <Badge variant={canManage ? "brand" : "default"} className="capitalize text-[11px]">
             {myRole.replace("_", " ")}
           </Badge>
+          {myMembership && (
+            <Button
+              variant="premium"
+              size="sm"
+              leftIcon={<HandCoins className="h-3.5 w-3.5" />}
+              onClick={() => setContributeOpen(true)}
+            >
+              Contribute
+            </Button>
+          )}
           {canManage && (
             <Button variant="outline" size="sm" leftIcon={<Settings className="h-3.5 w-3.5" />} onClick={openManage}>
               Manage
@@ -335,6 +356,48 @@ export default function ChamaDetailPage() {
           <Button className="w-full" variant="premium" onClick={handleSave}>Save Changes</Button>
         </div>
       </Modal>
+
+      {/* ===== CONTRIBUTE MODAL — zero-friction STK push flow ===== */}
+      {groupForPayment ? (
+        <ContributeModal
+          isOpen={contributeOpen}
+          onClose={() => setContributeOpen(false)}
+          mode="contribute"
+          group={groupForPayment}
+          mpesaAccounts={userMpesa}
+          suggestedAmount={chama.monthlyContribution}
+        />
+      ) : (
+        // Synthesize a minimal ChamaGroup for the modal so legacy chamas (not in the
+        // polymorphic Group store) still work.
+        <ContributeModal
+          isOpen={contributeOpen}
+          onClose={() => setContributeOpen(false)}
+          mode="contribute"
+          group={{
+            id: chama.id,
+            kind: "chama",
+            visibility: "private",
+            status: "active",
+            name: chama.name,
+            slug: chama.id,
+            description: chama.description,
+            logoUrl: chama.logoUrl,
+            location: chama.location,
+            tags: [],
+            createdAt: chama.createdAt,
+            updatedAt: chama.createdAt,
+            memberCount: chama.memberCount,
+            totalFunds: chama.totalFunds,
+            requireKyc: false,
+            allowDiscovery: false,
+            category: chama.category,
+            monthlyContribution: chama.monthlyContribution,
+          }}
+          mpesaAccounts={userMpesa}
+          suggestedAmount={chama.monthlyContribution}
+        />
+      )}
     </motion.div>
   );
 }

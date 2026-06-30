@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils";
 
 const LINKS = [
   { label: "Features", href: "#features" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "Discover", href: "/discover", route: true as const },
+  { label: "Pricing", href: "/pricing", route: true as const },
   { label: "Testimonials", href: "#testimonials" },
   { label: "FAQ", href: "#faq" },
 ];
@@ -40,15 +41,25 @@ export function LandingNavbar() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-1">
-          {LINKS.map((l) => (
-            <a
-              key={l.label}
-              href={l.href}
-              className="focus-ring relative px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50/50 dark:hover:bg-brand-500/[0.04]"
-            >
-              {l.label}
-            </a>
-          ))}
+          {LINKS.map((l) =>
+            "route" in l && l.route ? (
+              <Link
+                key={l.label}
+                to={l.href}
+                className="focus-ring relative px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50/50 dark:hover:bg-brand-500/[0.04]"
+              >
+                {l.label}
+              </Link>
+            ) : (
+              <a
+                key={l.label}
+                href={l.href}
+                className="focus-ring relative px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-lg hover:bg-brand-50/50 dark:hover:bg-brand-500/[0.04]"
+              >
+                {l.label}
+              </a>
+            )
+          )}
         </nav>
 
         <div className="hidden md:flex items-center gap-2.5">
@@ -78,16 +89,27 @@ export function LandingNavbar() {
             className="md:hidden overflow-hidden border-t border-gray-100 dark:border-white/[0.05] bg-white/90 dark:bg-neutral-950/90 backdrop-blur-xl"
           >
             <div className="flex flex-col gap-2 px-6 py-5">
-              {LINKS.map((l) => (
-                <a
-                  key={l.label}
-                  href={l.href}
-                  onClick={() => setOpen(false)}
-                  className="focus-ring text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 py-2 transition-colors"
-                >
-                  {l.label}
-                </a>
-              ))}
+              {LINKS.map((l) =>
+                "route" in l && l.route ? (
+                  <Link
+                    key={l.label}
+                    to={l.href}
+                    onClick={() => setOpen(false)}
+                    className="focus-ring text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 py-2 transition-colors"
+                  >
+                    {l.label}
+                  </Link>
+                ) : (
+                  <a
+                    key={l.label}
+                    href={l.href}
+                    onClick={() => setOpen(false)}
+                    className="focus-ring text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 py-2 transition-colors"
+                  >
+                    {l.label}
+                  </a>
+                )
+              )}
               <div className="h-px bg-gray-100 dark:bg-white/[0.05] my-1" />
               <Link to="/login" onClick={() => setOpen(false)} className="text-sm font-semibold text-gray-900 dark:text-white py-2">
                 Sign in

@@ -1,19 +1,54 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, UserPlus } from "lucide-react";
+import { Plus, UserPlus, HandCoins, Building2 } from "lucide-react";
 import { ChamaCard } from "@/components/cards/ChamaCard";
 import { Button } from "@/components/ui/Button";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Pagination } from "@/components/common/Pagination";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ContributeModal } from "@/components/payments/ContributeModal";
 import { useChamaStore } from "@/stores/chamaStore";
+import { useGroupStore } from "@/stores/groupStore";
 import { useSearch } from "@/hooks/useSearch";
 import { usePagination } from "@/hooks/usePagination";
-import { Building2 } from "lucide-react";
+import type { Chama, Group, MpesaAccount } from "@/types";
+
+// Single linked M-Pesa account for the mock layer. Production wires from
+// wallet store / auth context.
+const USER_MPESA: MpesaAccount[] = [
+  { id: "mp_1", userId: "usr_1", phoneNumber: "+254712345678", isDefault: true, isVerified: true, lastUsed: new Date().toISOString() },
+];
+
+function chamaToGroup(c: Chama): Group {
+  return {
+    id: c.id,
+    kind: "chama",
+    visibility: "private",
+    status: "active",
+    name: c.name,
+    slug: c.id,
+    description: c.description,
+    logoUrl: c.logoUrl,
+    location: c.location,
+    tags: [],
+    createdAt: c.createdAt,
+    updatedAt: c.createdAt,
+    memberCount: c.memberCount,
+    totalFunds: c.totalFunds,
+    requireKyc: false,
+    allowDiscovery: false,
+    category: c.category,
+    monthlyContribution: c.monthlyContribution,
+  };
+}
 
 export default function MyChamasPage() {
   const chamas = useChamaStore((s) => s.chamas);
+  const groupById = useGroupStore((s) => s.byId);
   const { query, setQuery, results } = useSearch(chamas, ["name", "location", "category"]);
   const { page, totalPages, paginated, goToPage } = usePagination(results, 9);
+
+  const [payTarget, setPayTarget] = useState<Group | null>(null);
 
   return (
     <div className="space-y-6">
@@ -35,10 +70,38 @@ export default function MyChamasPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {paginated.map((chama) => <ChamaCard key={chama.id} chama={chama} />)}
+            {paginated.map((chama) => (
+              <div key={chama.id} className="flex flex-col gap-2">
+                <ChamaCard chama={chama} />
+                <Button
+                  variant="premium"
+                  size="sm"
+                  leftIcon={<HandCoins className="h-3.5 w-3.5" />}
+                  onClick={() => setPayTarget(groupById(chama.id) ?? chamaToGroup(chama))}
+                  className="w-full"
+                >
+                  Contribute
+                </Button>
+              </div>
+            ))}
           </div>
           <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} />
         </>
+      )}
+
+      {payTarget && (
+        <ContributeModal
+          isOpen={!!payTarget}
+          onClose={() => setPayTarget(null)}
+          mode="contribute"
+          group={payTarget}
+          mpesaAccounts={USER_MPESA}
+          suggestedAmount={
+            payTarget.kind === "chama" || payTarget.kind === "savings_loan"
+              ? payTarget.monthlyContribution
+              : undefined
+          }
+        />
       )}
     </div>
   );

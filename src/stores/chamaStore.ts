@@ -1,3 +1,4 @@
+// DEPRECATED — superseded by groupStore. Migration tracked in docs/RESEARCH_DOSSIER.md.
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Chama, Member } from "@/types";

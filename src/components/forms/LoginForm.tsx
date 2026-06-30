@@ -18,13 +18,17 @@ export function LoginForm() {
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "amara@pamoja.app", password: "password123" },
+    defaultValues: { email: "amara@pamoja.app", password: "Demo1234!" },
   });
 
   const onSubmit = async (values: LoginFormValues) => {
-    await login(values.email, values.password);
-    toast.success("Welcome back to Pamoja Wealth!");
-    navigate("/dashboard");
+    try {
+      await login(values.email, values.password);
+      toast.success("Welcome back to Pamoja Wealth!");
+      navigate("/dashboard");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error?.message || err?.message || "Login failed");
+    }
   };
 
   return (

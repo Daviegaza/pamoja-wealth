@@ -1,9 +1,12 @@
 import { useState } from "react";
 import {
   ArrowDownToLine, ArrowUpFromLine, Building2, Smartphone, CreditCard,
-  Plus, CheckCircle, Receipt, QrCode,
+  Plus, CheckCircle, Receipt, QrCode, HandCoins, Search,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ContributeModal } from "@/components/payments/ContributeModal";
+import { useGroupStore } from "@/stores/groupStore";
+import type { Group } from "@/types";
 import { WalletCard } from "@/components/cards/WalletCard";
 import { ChartCard } from "@/components/charts/ChartCard";
 import { WalletHistoryChart } from "@/components/charts/WalletHistoryChart";
@@ -44,6 +47,15 @@ export default function WalletPage() {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [linkBankOpen, setLinkBankOpen] = useState(false);
   const [linkMpesaOpen, setLinkMpesaOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [payTarget, setPayTarget] = useState<Group | null>(null);
+
+  // Group picker — list all groups the user belongs to (mocked from group store).
+  const groups = useGroupStore((s) => s.groups);
+  const [pickerQuery, setPickerQuery] = useState("");
+  const filteredGroups = groups
+    .filter((g) => g.name.toLowerCase().includes(pickerQuery.toLowerCase()))
+    .slice(0, 30);
 
   // Deposit state
   const [depositMethod, setDepositMethod] = useState<"mpesa" | "bank" | "card">("mpesa");
@@ -196,6 +208,24 @@ export default function WalletPage() {
           <Button leftIcon={<ArrowUpFromLine className="h-4 w-4" />} variant="outline" onClick={() => setWithdrawOpen(true)}>Withdraw</Button>
         </div>
       </div>
+
+      {/* One-tap "Contribute to a group" entry-point — opens the picker, then ContributeModal. */}
+      <motion.button
+        whileHover={{ y: -2 }}
+        onClick={() => setPickerOpen(true)}
+        className="card-hover w-full p-4 flex items-center justify-between gap-4 text-left border-l-4 border-l-brand-500/70 hover:border-l-brand-500 transition-all"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-500/[0.1] text-brand-600 dark:text-brand-400">
+            <HandCoins className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="font-semibold text-sm text-gray-900 dark:text-white">Contribute to a group</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">One tap → STK push → PIN. Three taps total.</p>
+          </div>
+        </div>
+        <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">Pick a group →</span>
+      </motion.button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-4">
@@ -436,6 +466,55 @@ export default function WalletPage() {
           </Button>
         </div>
       </Modal>
+
+      {/* ===== GROUP PICKER for Contribute entry-point ===== */}
+      <Modal isOpen={pickerOpen} onClose={() => setPickerOpen(false)} title="Contribute to which group?" size="md">
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              autoFocus
+              value={pickerQuery}
+              onChange={(e) => setPickerQuery(e.target.value)}
+              placeholder="Search your chamas or harambees…"
+              className="w-full rounded-xl border border-gray-300 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] pl-9 pr-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
+            />
+          </div>
+          <div className="max-h-96 overflow-y-auto space-y-1.5 -mx-1 px-1">
+            {filteredGroups.length === 0 ? (
+              <p className="text-sm text-gray-400 py-8 text-center">No groups match "{pickerQuery}".</p>
+            ) : filteredGroups.map((g) => (
+              <button
+                key={g.id}
+                onClick={() => {
+                  setPayTarget(g);
+                  setPickerOpen(false);
+                }}
+                className="w-full flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] px-3.5 py-3 text-left hover:border-brand-400 hover:bg-brand-50/40 dark:hover:bg-brand-500/[0.04] transition-colors"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{g.name}</p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 capitalize">
+                    {g.kind === "savings_loan" ? "Savings & Loan" : g.kind}{g.location ? ` · ${g.location}` : ""}
+                  </p>
+                </div>
+                <HandCoins className="h-4 w-4 text-brand-500 shrink-0" />
+              </button>
+            ))}
+          </div>
+        </div>
+      </Modal>
+
+      {payTarget && (
+        <ContributeModal
+          isOpen={!!payTarget}
+          onClose={() => setPayTarget(null)}
+          mode={payTarget.kind === "harambee" ? "donate" : "contribute"}
+          group={payTarget}
+          mpesaAccounts={mpesaAccounts}
+        />
+      )}
     </div>
   );
 }

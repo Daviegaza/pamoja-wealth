@@ -1,11 +1,20 @@
 import { generateUsers } from "./users";
 import { generateChamas, generateMembers } from "./chamas";
+// Re-export the billing mock layer so callers can `import "@/mock/billing"`
+// either directly or, in tests, force generation via getMockBilling().
+export { getMockBilling, PLANS as MOCK_PLANS, COUPONS as MOCK_COUPONS } from "./billing";
 import { generateTransactions, generateLoans, generateInvestments } from "./finance";
 import { generateMeetings, generateVotes, generateNotifications, generateActivity, generateDocuments, generateWalletHistory } from "./activity";
 import { generateAnalytics } from "./analytics";
+import {
+  buildGroups,
+  generateDonations,
+  generateRuleVersions,
+} from "./groups";
 import type {
-  ActivityItem, Chama, DocumentItem, Investment, Loan, Meeting, Member,
-  Notification, Transaction, User, Vote, WalletHistoryPoint, Analytics,
+  ActivityItem, Chama, ChamaGroup, ChamaRuleVersion, DocumentItem, Donation,
+  Group, HarambeeGroup, Investment, Loan, Meeting, Member, Notification,
+  PotGroup, SavingsLoanGroup, Transaction, User, Vote, WalletHistoryPoint, Analytics,
 } from "@/types";
 
 export interface MockDatabase {
@@ -22,6 +31,14 @@ export interface MockDatabase {
   documents: DocumentItem[];
   walletHistory: WalletHistoryPoint[];
   analytics: Analytics;
+  // ===== Polymorphic group entities (additive — does not break legacy callers) =====
+  groups: Group[];
+  chamaGroups: ChamaGroup[];
+  harambees: HarambeeGroup[];
+  pots: PotGroup[];
+  savingsLoanGroups: SavingsLoanGroup[];
+  ruleVersions: ChamaRuleVersion[];
+  donations: Donation[];
 }
 
 let db: MockDatabase | null = null;
@@ -44,7 +61,38 @@ export function getMockDatabase(): MockDatabase {
   const walletHistory = generateWalletHistory(90);
   const analytics = generateAnalytics();
 
-  db = { users, chamas, members, transactions, loans, investments, meetings, votes, notifications, activity, documents, walletHistory, analytics };
+  // Polymorphic groups: 200 chamas (re-shaped) + 50 harambees + 30 pots + 20 savings_loan
+  const { groups, chamaGroups, harambees, pots, savingsLoanGroups } = buildGroups(
+    chamas,
+    50,
+    30,
+    20
+  );
+  const ruleVersions = generateRuleVersions(chamaGroups, savingsLoanGroups, users, 5);
+  const donations = generateDonations(harambees, users, 300);
+
+  db = {
+    users,
+    chamas,
+    members,
+    transactions,
+    loans,
+    investments,
+    meetings,
+    votes,
+    notifications,
+    activity,
+    documents,
+    walletHistory,
+    analytics,
+    groups,
+    chamaGroups,
+    harambees,
+    pots,
+    savingsLoanGroups,
+    ruleVersions,
+    donations,
+  };
   return db;
 }
 

@@ -39,6 +39,11 @@ const BillingPage = lazy(() => import("@/pages/billing/BillingPage"));
 const SupportPage = lazy(() => import("@/pages/support/SupportPage"));
 const NetworkPage = lazy(() => import("@/pages/network/NetworkPage"));
 const NotFoundPage = lazy(() => import("@/pages/not-found/NotFoundPage"));
+const DiscoverPage = lazy(() => import("@/pages/Discover"));
+const CampaignPage = lazy(() => import("@/pages/Campaign/[slug]"));
+const CreateGroupPage = lazy(() => import("@/pages/Create"));
+const RuleBuilderPage = lazy(() => import("@/pages/RuleBuilder"));
+const PricingPage = lazy(() => import("@/pages/Pricing"));
 
 function withSuspense(Component: ComponentType) {
   return (
@@ -58,6 +63,9 @@ const router = createBrowserRouter([
       { path: "/terms", element: withSuspense(TermsPage) },
       { path: "/security", element: withSuspense(SecurityPage) },
       { path: "/help", element: withSuspense(HelpPage) },
+      { path: "/discover", element: withSuspense(DiscoverPage) },
+      { path: "/c/:slug", element: withSuspense(CampaignPage) },
+      { path: "/pricing", element: withSuspense(PricingPage) },
     ],
   },
   {
@@ -98,6 +106,9 @@ const router = createBrowserRouter([
       { path: "/billing", element: withSuspense(BillingPage) },
       { path: "/support", element: withSuspense(SupportPage) },
       { path: "/network", element: withSuspense(NetworkPage) },
+      { path: "/create", element: withSuspense(CreateGroupPage) },
+      { path: "/rules/builder", element: withSuspense(RuleBuilderPage) },
+      { path: "/rules/builder/:groupId", element: withSuspense(RuleBuilderPage) },
     ],
   },
   { path: "*", element: withSuspense(NotFoundPage) },

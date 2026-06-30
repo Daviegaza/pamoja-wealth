@@ -17,9 +17,18 @@ export function RegisterForm() {
   });
 
   const onSubmit = async (values: RegisterFormValues) => {
-    await registerUser(values.fullName, values.email, values.password);
-    toast.success("Account created! Welcome to Pamoja Wealth.");
-    navigate("/dashboard");
+    try {
+      await registerUser({
+        fullName: values.fullName,
+        email: values.email,
+        phone: values.phone,
+        password: values.password,
+      });
+      toast.success("Account created! Welcome to Pamoja Wealth.");
+      navigate("/dashboard");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error?.message || err?.message || "Registration failed");
+    }
   };
 
   return (
