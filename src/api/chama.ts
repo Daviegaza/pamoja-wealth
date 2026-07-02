@@ -109,6 +109,11 @@ export async function updateChama(id: string, data: {
 
 export type ChamaRole = "owner" | "admin" | "chairperson" | "secretary" | "treasurer" | "member";
 
+export async function removeMemberFromChama(chamaId: string, userId: string) {
+  const r = await api.post<Envelope<{ removed: true }>>(`/chamas/${chamaId}/remove-member/${userId}`);
+  return r.data.data;
+}
+
 export async function updateMemberRole(chamaId: string, userId: string, role: ChamaRole, customTitle?: string | null) {
   const r = await api.post<Envelope<{ role: ChamaRole; customTitle?: string | null }>>(
     `/chamas/${chamaId}/members/${userId}/role`,

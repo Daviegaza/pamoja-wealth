@@ -25,7 +25,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { getMockDatabase } from "@/mock";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { getChama, getMembers, updateChama, updateMemberRole, inviteToChama, type ChamaDetail, type ChamaDetailMember, type ChamaRole } from "@/api/chama";
+import { getChama, getMembers, updateChama, updateMemberRole, inviteToChama, removeMemberFromChama, listJoinRequests, decideJoinRequest, type ChamaDetail, type ChamaDetailMember, type ChamaRole } from "@/api/chama";
 
 const MANAGEMENT_ROLES: Role[] = ["owner", "admin", "chairperson"];
 
@@ -162,6 +162,41 @@ export default function ChamaDetailPage() {
     toast.success("Invite code copied!");
   };
 
+  const joinRequestsQuery = useQuery({
+    queryKey: ["chamas", "join-requests", chamaId],
+    queryFn: () => listJoinRequests(chamaId),
+    enabled: !!chamaId,
+    retry: false,
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: (userId: string) => removeMemberFromChama(chamaId, userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["chamas", "detail", chamaId] });
+      qc.invalidateQueries({ queryKey: ["chamas", "members", chamaId] });
+      toast.success("Member removed.");
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      toast.error(msg || "Failed to remove member.");
+    },
+  });
+
+  const decideJoinRequestMutation = useMutation({
+    mutationFn: ({ requestId, decision }: { requestId: string; decision: "approved" | "rejected" }) =>
+      decideJoinRequest(chamaId, requestId, decision),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["chamas", "join-requests", chamaId] });
+      qc.invalidateQueries({ queryKey: ["chamas", "members", chamaId] });
+      qc.invalidateQueries({ queryKey: ["chamas", "detail", chamaId] });
+      toast.success("Decision saved.");
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      toast.error(msg || "Failed to save decision.");
+    },
+  });
+
   const inviteMutation = useMutation({
     mutationFn: () => inviteToChama(chamaId, {
       method: inviteMethod,
@@ -297,8 +332,9 @@ export default function ChamaDetailPage() {
           {members.length > 0 ? members.slice(0, 10).map((m) => (
             <div key={m.id} className="space-y-2">
               <MemberCard member={m} trustScore={computeTrustScore(m, loans, verifiedUserIds.has(m.userId))} />
-              {(myRole === "owner" || myRole === "admin") && m.userId !== user?.id && (
-                <div className="space-y-1.5">
+              {(myRole === "owner" || myRole === "admin") && m.userId !== user?.id && m.role !== "owner" && (
+                <div className="rounded-xl border border-gray-100 dark:border-white/[0.05] bg-gray-50/40 dark:bg-white/[0.02] p-2 space-y-1.5">
+                  <p className="text-[9px] uppercase tracking-wider font-bold text-gray-400">Admin controls</p>
                   <select
                     value={m.role}
                     onChange={(e) => roleMutation.mutate({ userId: m.userId, role: e.target.value as ChamaRole })}
@@ -310,7 +346,7 @@ export default function ChamaDetailPage() {
                     <option value="treasurer">Treasurer</option>
                     <option value="chairperson">Chairperson</option>
                     <option value="admin">Admin</option>
-                    {myRole === "owner" && <option value="owner">Owner</option>}
+                    {myRole === "owner" && <option value="owner">Promote to Owner</option>}
                   </select>
                   <input
                     type="text"
@@ -325,6 +361,17 @@ export default function ChamaDetailPage() {
                     }}
                     className="w-full text-xs rounded-lg border border-gray-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] px-2 py-1.5 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
                   />
+                  <button
+                    onClick={() => {
+                      if (confirm(`Remove ${m.fullName} from ${chama.name}? This cannot be undone.`)) {
+                        removeMemberMutation.mutate(m.userId);
+                      }
+                    }}
+                    disabled={removeMemberMutation.isPending}
+                    className="w-full text-[11px] font-semibold text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 hover:bg-red-50 dark:hover:bg-red-500/[0.08] rounded-lg py-1.5 transition-colors disabled:opacity-50"
+                  >
+                    Remove Member
+                  </button>
                 </div>
               )}
             </div>
@@ -365,11 +412,43 @@ export default function ChamaDetailPage() {
   );
 
   if (canManage) {
+    const pendingRequests: Array<{ id: string; userId: string; fullName?: string; message?: string; createdAt?: string }> = (joinRequestsQuery.data as unknown as Array<{ id: string; userId: string; fullName?: string; message?: string; createdAt?: string }>) ?? [];
     tabs.push({
       value: "management",
-      label: "Management",
+      label: pendingRequests.length > 0 ? `Management · ${pendingRequests.length} pending` : "Management",
       content: (
         <div className="space-y-6 max-w-3xl">
+          {pendingRequests.length > 0 && (
+            <div className="card-hover p-4 border-l-4 border-l-amber-500">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                Pending join requests ({pendingRequests.length})
+              </h3>
+              <div className="space-y-2">
+                {pendingRequests.map((req) => (
+                  <div key={req.id} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-gray-50 dark:bg-white/[0.03]">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{req.fullName ?? req.userId}</p>
+                      {req.message && <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">"{req.message}"</p>}
+                    </div>
+                    <button
+                      onClick={() => decideJoinRequestMutation.mutate({ requestId: req.id, decision: "approved" })}
+                      disabled={decideJoinRequestMutation.isPending}
+                      className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 rounded-lg px-2.5 py-1 hover:bg-emerald-50 dark:hover:bg-emerald-500/[0.08]"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => decideJoinRequestMutation.mutate({ requestId: req.id, decision: "rejected" })}
+                      disabled={decideJoinRequestMutation.isPending}
+                      className="text-[11px] font-semibold text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 rounded-lg px-2.5 py-1 hover:bg-red-50 dark:hover:bg-red-500/[0.08]"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="grid sm:grid-cols-3 gap-4">
             <Link to="/treasury" className="card-hover p-4 hover:border-brand-300 dark:hover:border-brand-500/30 transition-all group">
               <Landmark className="h-5 w-5 text-brand-500 mb-2" />
