@@ -35,6 +35,7 @@ const DocumentsPage = lazy(() => import("@/pages/documents/DocumentsPage"));
 const AnalyticsPage = lazy(() => import("@/pages/analytics/AnalyticsPage"));
 const AIAssistantPage = lazy(() => import("@/pages/ai-assistant/AIAssistantPage"));
 const NotificationsPage = lazy(() => import("@/pages/notifications/NotificationsPage"));
+const MessagesPage = lazy(() => import("@/pages/messages/MessagesPage"));
 const ProfilePage = lazy(() => import("@/pages/profile/ProfilePage"));
 const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage"));
 const BillingPage = lazy(() => import("@/pages/billing/BillingPage"));
@@ -106,6 +107,7 @@ const router = createBrowserRouter([
       { path: "/analytics", element: withSuspense(AnalyticsPage) },
       { path: "/ai-assistant", element: withSuspense(AIAssistantPage) },
       { path: "/notifications", element: withSuspense(NotificationsPage) },
+      { path: "/messages", element: withSuspense(MessagesPage) },
       { path: "/profile", element: withSuspense(ProfilePage) },
       { path: "/settings", element: withSuspense(SettingsPage) },
       { path: "/billing", element: withSuspense(BillingPage) },

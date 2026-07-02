@@ -8,7 +8,12 @@ import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { useCommandPalette } from "@/hooks/useCommandPalette";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { LayoutDashboard, Users, Wallet, Calendar } from "lucide-react";
+import { listMyChamas } from "@/api/chama";
+import { useChamaStore } from "@/stores/chamaStore";
+import { useAuthStore } from "@/stores/authStore";
+import type { Chama } from "@/types";
 
 const mobileNav = [
   { label: "Home", icon: LayoutDashboard, path: "/dashboard" },
@@ -26,6 +31,43 @@ const pageVariants = {
 export function DashboardLayout() {
   useCommandPalette();
   const location = useLocation();
+  const setChamas = useChamaStore((s) => s.setChamas);
+
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const hasToken = typeof window !== "undefined" && !!localStorage.getItem("pamoja_token");
+  const chamasQuery = useQuery({
+    queryKey: ["chamas", "mine"],
+    queryFn: () => listMyChamas({ pageSize: 50 }),
+    enabled: isAuthenticated && hasToken,
+    staleTime: 60_000,
+    retry: (count, err) => {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 401 || status === 403) return false;
+      return count < 2;
+    },
+  });
+
+  useEffect(() => {
+    const items = chamasQuery.data?.items;
+    if (!items) return;
+    const mapped: Chama[] = items.map((c) => ({
+      id: c.id,
+      name: c.name,
+      description: c.description ?? "",
+      category: c.category,
+      privacy: c.privacy,
+      logoUrl: c.logoUrl ?? undefined,
+      location: c.location ?? undefined,
+      totalFunds: c.totalFunds,
+      monthlyContribution: c.monthlyContribution,
+      memberCount: c.memberCount ?? 0,
+      status: (c.status as Chama["status"]) ?? "active",
+      createdAt: c.createdAt,
+      nextMeetingDate: "",
+      growthRate: 0,
+    } as unknown as Chama));
+    setChamas(mapped);
+  }, [chamasQuery.data, setChamas]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });

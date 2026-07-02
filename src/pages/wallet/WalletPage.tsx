@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   ArrowDownToLine, ArrowUpFromLine, Building2, Smartphone, CreditCard,
-  Plus, CheckCircle, Receipt, QrCode, HandCoins, Search, Loader2, AlertCircle,
+  Plus, CheckCircle, Receipt, QrCode, HandCoins, Search, Loader2, AlertCircle, Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,6 +27,8 @@ import type { Transaction, BankAccount, MpesaAccount, BankProvider, Wallet as Wa
 import {
   getWallet, getHistory, listTransactions,
   deposit as depositApi, withdraw as withdrawApi,
+  listBankAccounts, linkBankAccount, unlinkBankAccount, setDefaultBankAccount,
+  listMpesaAccounts, linkMpesaAccount, unlinkMpesaAccount, setDefaultMpesaAccount,
   type WalletDTO, type WalletTransactionDTO,
 } from "@/api/wallet";
 
@@ -108,14 +110,64 @@ export default function WalletPage() {
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawDestination, setWithdrawDestination] = useState("");
 
-  // Linked accounts (local state, would be API-fetched in production)
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
-    { id: "ba_1", userId: "usr_1", bankName: "equity", accountNumber: "****2342", accountName: "Amara Okafor", isDefault: true, isVerified: true, balance: 245_000, lastSynced: new Date().toISOString(), createdAt: "2025-06-01" },
-    { id: "ba_2", userId: "usr_1", bankName: "kcb", accountNumber: "****7891", accountName: "Amara Okafor", isDefault: false, isVerified: true, balance: 180_000, lastSynced: new Date(Date.now() - 3600000).toISOString(), createdAt: "2025-11-15" },
-  ]);
-  const [mpesaAccounts, setMpesaAccounts] = useState<MpesaAccount[]>([
-    { id: "mp_1", userId: "usr_1", phoneNumber: "+254 712 345 678", isDefault: true, isVerified: true, lastUsed: new Date(Date.now() - 1800000).toISOString() },
-  ]);
+  const banksQuery = useQuery({ queryKey: ["wallet", "banks"], queryFn: listBankAccounts, retry: 1 });
+  const mpesaQuery = useQuery({ queryKey: ["wallet", "mpesa"], queryFn: listMpesaAccounts, retry: 1 });
+  const bankAccounts: BankAccount[] = (Array.isArray(banksQuery.data) ? banksQuery.data : []).map((b) => ({ ...b })) as BankAccount[];
+  const mpesaAccounts: MpesaAccount[] = (Array.isArray(mpesaQuery.data) ? mpesaQuery.data : []).map((m) => ({ ...m })) as MpesaAccount[];
+
+  const linkBankMutation = useMutation({
+    mutationFn: linkBankAccount,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["wallet", "banks"] });
+      toast.success("Bank account linked successfully!");
+      setLinkBankOpen(false);
+      setLinkBankProvider("equity");
+      setLinkBankNumber("");
+      setLinkBankName("");
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? "Failed to link bank account.";
+      toast.error(msg);
+    },
+  });
+
+  const linkMpesaMutation = useMutation({
+    mutationFn: linkMpesaAccount,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["wallet", "mpesa"] });
+      toast.success("M-Pesa number linked successfully!");
+      setLinkMpesaOpen(false);
+      setLinkMpesaPhone("");
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? "Failed to link M-Pesa.";
+      toast.error(msg);
+    },
+  });
+
+  const setDefaultBankMutation = useMutation({
+    mutationFn: setDefaultBankAccount,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["wallet", "banks"] }); toast.success("Default bank updated."); },
+    onError: () => toast.error("Failed to set default bank."),
+  });
+
+  const unlinkBankMutation = useMutation({
+    mutationFn: unlinkBankAccount,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["wallet", "banks"] }); toast.success("Bank account removed."); },
+    onError: () => toast.error("Failed to remove bank account."),
+  });
+
+  const setDefaultMpesaMutation = useMutation({
+    mutationFn: setDefaultMpesaAccount,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["wallet", "mpesa"] }); toast.success("Default M-Pesa updated."); },
+    onError: () => toast.error("Failed to set default M-Pesa."),
+  });
+
+  const unlinkMpesaMutation = useMutation({
+    mutationFn: unlinkMpesaAccount,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["wallet", "mpesa"] }); toast.success("M-Pesa number removed."); },
+    onError: () => toast.error("Failed to remove M-Pesa."),
+  });
 
   // Link bank form state
   const [linkBankProvider, setLinkBankProvider] = useState<BankProvider>("equity");
@@ -167,6 +219,39 @@ export default function WalletPage() {
     },
   });
 
+  const downloadReceipt = (t: Transaction) => {
+    const lines = [
+      "═════════════════════════════════════════",
+      "         PAMOJA WEALTH — RECEIPT         ",
+      "═════════════════════════════════════════",
+      "",
+      `Reference:      ${t.reference}`,
+      `Date:           ${formatDate(t.date)}`,
+      `Description:    ${t.description}`,
+      `Type:           ${t.type}`,
+      `Amount:         ${t.amount < 0 ? "-" : "+"}${formatCurrency(Math.abs(t.amount))}`,
+      `Balance After:  ${formatCurrency(t.balanceAfter ?? 0)}`,
+      `Status:         ${t.status.toUpperCase()}`,
+      `Customer:       ${user?.fullName ?? ""}`,
+      `Email:          ${user?.email ?? ""}`,
+      "",
+      "─────────────────────────────────────────",
+      "This receipt confirms the above transaction.",
+      "Contact support@pamojawealth.app for issues.",
+      "═════════════════════════════════════════",
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `receipt-${t.reference}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`Receipt for ${t.reference} downloaded`);
+  };
+
   const columns: Column<Transaction>[] = [
     { key: "reference", header: "Ref" },
     { key: "description", header: "Description" },
@@ -184,6 +269,20 @@ export default function WalletPage() {
       key: "status",
       header: "Status",
       render: (t) => <Badge variant={statusVariant[t.status]} dot={t.status === "completed"} className="capitalize text-[11px]">{t.status}</Badge>,
+    },
+    {
+      key: "actions" as never,
+      header: "",
+      render: (t) => (
+        <button
+          onClick={() => downloadReceipt(t)}
+          aria-label={`Download receipt ${t.reference}`}
+          title="Download receipt"
+          className="rounded-lg p-1.5 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-gray-100 dark:hover:bg-white/[0.04] transition-colors"
+        >
+          <Download className="h-4 w-4" />
+        </button>
+      ),
     },
   ];
 
@@ -215,55 +314,19 @@ export default function WalletPage() {
     withdrawMutation.mutate({ amount, method: withdrawMethod, destination: withdrawDestination.trim() });
   };
 
-  // ----- Link Bank -----
   const handleLinkBank = () => {
-    if (!linkBankNumber.trim()) {
-      toast.error("Please enter an account number.");
-      return;
-    }
-    if (!linkBankName.trim()) {
-      toast.error("Please enter the account holder name.");
-      return;
-    }
-    const masked = linkBankNumber.length > 4 ? `****${linkBankNumber.slice(-4)}` : linkBankNumber;
-    const newBank: BankAccount = {
-      id: `ba_${Date.now()}`,
-      userId: user?.id ?? "usr_1",
+    if (!linkBankNumber.trim()) { toast.error("Please enter an account number."); return; }
+    if (!linkBankName.trim()) { toast.error("Please enter the account holder name."); return; }
+    linkBankMutation.mutate({
       bankName: linkBankProvider,
-      accountNumber: masked,
+      accountNumber: linkBankNumber,
       accountName: linkBankName,
-      isDefault: bankAccounts.length === 0,
-      isVerified: true,
-      balance: 0,
-      lastSynced: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-    };
-    setBankAccounts([...bankAccounts, newBank]);
-    toast.success(`${bankLabels[linkBankProvider]} account linked successfully!`);
-    setLinkBankOpen(false);
-    setLinkBankProvider("equity");
-    setLinkBankNumber("");
-    setLinkBankName("");
+    });
   };
 
-  // ----- Link M-Pesa -----
   const handleLinkMpesa = () => {
-    if (!linkMpesaPhone.trim()) {
-      toast.error("Please enter a phone number.");
-      return;
-    }
-    const newMpesa: MpesaAccount = {
-      id: `mp_${Date.now()}`,
-      userId: user?.id ?? "usr_1",
-      phoneNumber: linkMpesaPhone,
-      isDefault: mpesaAccounts.length === 0,
-      isVerified: true,
-      lastUsed: new Date().toISOString(),
-    };
-    setMpesaAccounts([...mpesaAccounts, newMpesa]);
-    toast.success("M-Pesa number linked successfully!");
-    setLinkMpesaOpen(false);
-    setLinkMpesaPhone("");
+    if (!linkMpesaPhone.trim()) { toast.error("Please enter a phone number."); return; }
+    linkMpesaMutation.mutate({ phoneNumber: linkMpesaPhone });
   };
 
   const isLoading = walletQuery.isLoading;
@@ -374,9 +437,22 @@ export default function WalletPage() {
                           <CheckCircle className="h-3 w-3" /> Verified
                         </div>
                       </div>
+                      <div className="mt-3 flex gap-2">
+                        {!bank.isDefault && (
+                          <Button size="sm" variant="ghost" className="flex-1" onClick={() => setDefaultBankMutation.mutate(bank.id)} disabled={setDefaultBankMutation.isPending}>
+                            Set default
+                          </Button>
+                        )}
+                        <Button size="sm" variant="ghost" className="flex-1 text-red-500 hover:text-red-600" onClick={() => unlinkBankMutation.mutate(bank.id)} disabled={unlinkBankMutation.isPending}>
+                          Remove
+                        </Button>
+                      </div>
                     </motion.div>
                   ))}
-                  {bankAccounts.length === 0 && (
+                  {banksQuery.isLoading && (
+                    <p className="text-sm text-gray-400 col-span-2 py-8 text-center">Loading bank accounts…</p>
+                  )}
+                  {!banksQuery.isLoading && bankAccounts.length === 0 && (
                     <p className="text-sm text-gray-400 col-span-2 py-8 text-center">No linked bank accounts yet.</p>
                   )}
                 </div>
@@ -418,9 +494,22 @@ export default function WalletPage() {
                           <CheckCircle className="h-3 w-3" /> Verified
                         </div>
                       </div>
+                      <div className="mt-3 flex gap-2">
+                        {!mpesa.isDefault && (
+                          <Button size="sm" variant="ghost" className="flex-1" onClick={() => setDefaultMpesaMutation.mutate(mpesa.id)} disabled={setDefaultMpesaMutation.isPending}>
+                            Set default
+                          </Button>
+                        )}
+                        <Button size="sm" variant="ghost" className="flex-1 text-red-500 hover:text-red-600" onClick={() => unlinkMpesaMutation.mutate(mpesa.id)} disabled={unlinkMpesaMutation.isPending}>
+                          Remove
+                        </Button>
+                      </div>
                     </motion.div>
                   ))}
-                  {mpesaAccounts.length === 0 && (
+                  {mpesaQuery.isLoading && (
+                    <p className="text-sm text-gray-400 col-span-2 py-8 text-center">Loading M-Pesa accounts…</p>
+                  )}
+                  {!mpesaQuery.isLoading && mpesaAccounts.length === 0 && (
                     <p className="text-sm text-gray-400 col-span-2 py-8 text-center">No linked M-Pesa accounts yet.</p>
                   )}
                   <motion.div whileHover={{ y: -2 }} className="card-hover p-5 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-500/[0.03] dark:to-transparent">
@@ -490,11 +579,63 @@ export default function WalletPage() {
             ))}
           </div>
           <Input label="Amount (KES)" placeholder="Enter amount" type="number" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} />
-          {depositMethod === "mpesa" && (
-            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/[0.04] p-3 text-xs text-emerald-700 dark:text-emerald-400">
-              <strong>Lipa na M-Pesa:</strong> Paybill 247247, Account: Your Chama ID. Contributions are auto-detected.
+
+          {depositMethod === "bank" && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Choose bank</p>
+              {bankAccounts.length === 0 && (
+                <p className="text-xs text-gray-400 py-2">No saved banks. Add one to continue.</p>
+              )}
+              {bankAccounts.map((b) => (
+                <div key={b.id} className="card-hover p-3 flex items-center gap-3">
+                  <Building2 className="h-4 w-4 text-blue-500" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{bankLabels[b.bankName] ?? b.bankName}</p>
+                    <p className="text-[11px] text-gray-400">{b.accountNumber}</p>
+                  </div>
+                  {b.isDefault && <Badge variant="brand" className="text-[9px]">Default</Badge>}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => { setDepositOpen(false); setLinkBankOpen(true); }}
+                className="w-full rounded-xl border-2 border-dashed border-gray-200 dark:border-white/[0.08] p-3 text-xs font-semibold text-brand-600 dark:text-brand-400 hover:border-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-500/[0.04] transition-colors"
+              >
+                + Add new bank account
+              </button>
             </div>
           )}
+
+          {depositMethod === "mpesa" && (
+            <>
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Choose M-Pesa</p>
+                {mpesaAccounts.length === 0 && (
+                  <p className="text-xs text-gray-400 py-2">No saved M-Pesa numbers. Add one to continue.</p>
+                )}
+                {mpesaAccounts.map((m) => (
+                  <div key={m.id} className="card-hover p-3 flex items-center gap-3">
+                    <Smartphone className="h-4 w-4 text-emerald-500" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{m.phoneNumber}</p>
+                    </div>
+                    {m.isDefault && <Badge variant="success" className="text-[9px]">Default</Badge>}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => { setDepositOpen(false); setLinkMpesaOpen(true); }}
+                  className="w-full rounded-xl border-2 border-dashed border-gray-200 dark:border-white/[0.08] p-3 text-xs font-semibold text-brand-600 dark:text-brand-400 hover:border-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-500/[0.04] transition-colors"
+                >
+                  + Add new M-Pesa
+                </button>
+              </div>
+              <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/[0.04] p-3 text-xs text-emerald-700 dark:text-emerald-400">
+                <strong>Lipa na M-Pesa:</strong> Paybill 247247, Account: Your Chama ID. Contributions are auto-detected.
+              </div>
+            </>
+          )}
+
           <Button className="w-full" variant="premium" onClick={handleDeposit} disabled={depositMutation.isPending}>
             {depositMutation.isPending ? "Processing..." : `Proceed to Pay ${depositAmount ? formatCurrency(parseInt(depositAmount)) : ""}`}
           </Button>
@@ -521,8 +662,54 @@ export default function WalletPage() {
               </button>
             ))}
           </div>
+          {withdrawMethod === "bank" && bankAccounts.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Send to saved bank</p>
+              {bankAccounts.map((b) => (
+                <button
+                  type="button"
+                  key={b.id}
+                  onClick={() => setWithdrawDestination(b.accountNumber)}
+                  className={`w-full card-hover p-3 flex items-center gap-3 text-left transition-all ${withdrawDestination === b.accountNumber ? "border-brand-500 bg-brand-50/50 dark:bg-brand-500/[0.06] ring-2 ring-brand-500/20" : ""}`}
+                >
+                  <Building2 className="h-4 w-4 text-blue-500" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{bankLabels[b.bankName] ?? b.bankName}</p>
+                    <p className="text-[11px] text-gray-400">{b.accountNumber}</p>
+                  </div>
+                  {b.isDefault && <Badge variant="brand" className="text-[9px]">Default</Badge>}
+                </button>
+              ))}
+            </div>
+          )}
+          {withdrawMethod === "mpesa" && mpesaAccounts.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Send to saved M-Pesa</p>
+              {mpesaAccounts.map((m) => (
+                <button
+                  type="button"
+                  key={m.id}
+                  onClick={() => setWithdrawDestination(m.phoneNumber)}
+                  className={`w-full card-hover p-3 flex items-center gap-3 text-left transition-all ${withdrawDestination === m.phoneNumber ? "border-brand-500 bg-brand-50/50 dark:bg-brand-500/[0.06] ring-2 ring-brand-500/20" : ""}`}
+                >
+                  <Smartphone className="h-4 w-4 text-emerald-500" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{m.phoneNumber}</p>
+                  </div>
+                  {m.isDefault && <Badge variant="success" className="text-[9px]">Default</Badge>}
+                </button>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => { setWithdrawOpen(false); withdrawMethod === "bank" ? setLinkBankOpen(true) : setLinkMpesaOpen(true); }}
+            className="w-full rounded-xl border-2 border-dashed border-gray-200 dark:border-white/[0.08] p-2.5 text-xs font-semibold text-brand-600 dark:text-brand-400 hover:border-brand-500 hover:bg-brand-50/50 dark:hover:bg-brand-500/[0.04] transition-colors"
+          >
+            + Add new {withdrawMethod === "bank" ? "bank account" : "M-Pesa"}
+          </button>
           <Input
-            label={withdrawMethod === "mpesa" ? "M-Pesa Phone Number" : "Bank Account Number"}
+            label={withdrawMethod === "mpesa" ? "Or type M-Pesa Phone Number" : "Or type Bank Account Number"}
             placeholder={withdrawMethod === "mpesa" ? "+254 7XX XXX XXX" : "Enter account number"}
             value={withdrawDestination}
             onChange={(e) => setWithdrawDestination(e.target.value)}
@@ -548,8 +735,8 @@ export default function WalletPage() {
           />
           <Input label="Account Number" placeholder="Enter your account number" value={linkBankNumber} onChange={(e) => setLinkBankNumber(e.target.value)} />
           <Input label="Account Holder Name" placeholder="Name on the account" value={linkBankName} onChange={(e) => setLinkBankName(e.target.value)} />
-          <Button className="w-full" variant="premium" onClick={handleLinkBank}>
-            Link Account
+          <Button className="w-full" variant="premium" onClick={handleLinkBank} disabled={linkBankMutation.isPending}>
+            {linkBankMutation.isPending ? "Linking…" : "Link Account"}
           </Button>
         </div>
       </Modal>
@@ -559,8 +746,8 @@ export default function WalletPage() {
         <div className="space-y-4">
           <Input label="M-Pesa Phone Number" placeholder="+254 7XX XXX XXX" value={linkMpesaPhone} onChange={(e) => setLinkMpesaPhone(e.target.value)} />
           <p className="text-xs text-gray-500 dark:text-gray-400">This number will be used for instant deposits and withdrawals via M-Pesa.</p>
-          <Button className="w-full" variant="premium" onClick={handleLinkMpesa}>
-            Link M-Pesa
+          <Button className="w-full" variant="premium" onClick={handleLinkMpesa} disabled={linkMpesaMutation.isPending}>
+            {linkMpesaMutation.isPending ? "Linking…" : "Link M-Pesa"}
           </Button>
         </div>
       </Modal>

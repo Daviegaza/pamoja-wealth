@@ -25,6 +25,8 @@ export interface ChamaDTO {
   deadline?: string | null;
   status?: string;
   createdAt: string;
+  myRole?: string | null;
+  myCustomTitle?: string | null;
 }
 
 interface Envelope<T> { success: true; data: T; meta?: { total: number; page: number; pageSize: number; totalPages: number }; }
@@ -90,6 +92,28 @@ export async function createChama(data: {
 
 export async function joinChama(id: string, body: { inviteCode?: string; invitationToken?: string; message?: string }) {
   const r = await api.post<Envelope<unknown>>(`/chamas/${id}/join`, body);
+  return r.data.data;
+}
+
+export async function updateChama(id: string, data: {
+  name?: string;
+  description?: string;
+  monthlyContribution?: number;
+  location?: string;
+  status?: string;
+  paybillAccountNumber?: string;
+}) {
+  const r = await api.patch<Envelope<ChamaDTO>>(`/chamas/${id}`, data);
+  return r.data.data;
+}
+
+export type ChamaRole = "owner" | "admin" | "chairperson" | "secretary" | "treasurer" | "member";
+
+export async function updateMemberRole(chamaId: string, userId: string, role: ChamaRole, customTitle?: string | null) {
+  const r = await api.post<Envelope<{ role: ChamaRole; customTitle?: string | null }>>(
+    `/chamas/${chamaId}/members/${userId}/role`,
+    { role, ...(customTitle !== undefined && { customTitle }) },
+  );
   return r.data.data;
 }
 

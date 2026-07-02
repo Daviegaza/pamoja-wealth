@@ -107,7 +107,7 @@ export async function getPlans(): Promise<Plan[]> {
 export async function getSubscription(chamaId: string): Promise<Subscription | null> {
   if (USE_MOCKS) return getMockBilling().subscriptionsByChama[chamaId] ?? null;
   try {
-    const { data } = await api.get<Subscription>(`/billing/subscriptions/${chamaId}`);
+    const { data } = await api.get<Subscription>(`/billing/subscription/${chamaId}`);
     return data;
   } catch (err) {
     // 404 == no active subscription, treat as free tier.
@@ -124,8 +124,7 @@ export async function startCheckout(
   paymentMethod: "mpesa_stk" | "mpesa_ratiba" | "card" = "mpesa_stk"
 ): Promise<CheckoutResult> {
   if (USE_MOCKS) return mockStartCheckout(chamaId, planCode, cadence, couponCode, paymentMethod);
-  const { data } = await api.post<CheckoutResult>(`/billing/checkout`, {
-    chamaId,
+  const { data } = await api.post<CheckoutResult>(`/billing/subscription/${chamaId}/checkout`, {
     planCode,
     cadence,
     couponCode,
@@ -139,7 +138,7 @@ export async function cancelSubscription(
   immediate: boolean = false
 ): Promise<Subscription> {
   if (USE_MOCKS) return mockCancelSubscription(chamaId, immediate);
-  const { data } = await api.post<Subscription>(`/billing/subscriptions/${chamaId}/cancel`, {
+  const { data } = await api.post<Subscription>(`/billing/subscription/${chamaId}/cancel`, {
     immediate,
   });
   return data;
@@ -151,7 +150,7 @@ export async function changePlan(
   prorate: boolean
 ): Promise<Subscription> {
   if (USE_MOCKS) return mockChangePlan(chamaId, planCode, prorate);
-  const { data } = await api.post<Subscription>(`/billing/subscriptions/${chamaId}/change-plan`, {
+  const { data } = await api.post<Subscription>(`/billing/subscription/${chamaId}/change-plan`, {
     planCode,
     prorate,
   });
@@ -164,8 +163,8 @@ export async function applyCoupon(
 ): Promise<{ discountKes: number; description?: string }> {
   if (USE_MOCKS) return mockApplyCoupon(chamaId, code);
   const { data } = await api.post<{ discountKes: number; description?: string }>(
-    `/billing/coupons/apply`,
-    { chamaId, code }
+    `/billing/subscription/${chamaId}/apply-coupon`,
+    { code }
   );
   return data;
 }
@@ -177,7 +176,7 @@ export async function listInvoices(
 ): Promise<{ invoices: Invoice[]; total: number }> {
   if (USE_MOCKS) return mockListInvoices(chamaId, page, limit);
   const { data } = await api.get<{ invoices: Invoice[]; total: number }>(
-    `/billing/subscriptions/${chamaId}/invoices`,
+    `/billing/invoices/${chamaId}`,
     { params: { page, limit } }
   );
   return data;

@@ -179,7 +179,7 @@ export default function InvestmentsPage() {
                 icon={TrendingUp}
                 title="No investments yet"
                 description="Start your first investment."
-                actionLabel="New Investment"
+                actionLabel="Add investment"
                 onAction={() => setModalOpen(true)}
               />
             </div>

@@ -1,4 +1,5 @@
 import { CheckCheck, Bell, AlertCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { NotificationCard } from "@/components/cards/NotificationCard";
 import { Button } from "@/components/ui/Button";
@@ -29,6 +30,7 @@ function toDomainNotification(n: NotificationDTO): Notification {
 
 export default function NotificationsPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const query = useQuery({
     queryKey: ["notifications"],
@@ -100,6 +102,7 @@ export default function NotificationsPage() {
                 notification={n}
                 onClick={() => {
                   if (!n.isRead) markReadMutation.mutate(n.id);
+                  if (n.actionUrl) navigate(n.actionUrl);
                 }}
               />
             ))}

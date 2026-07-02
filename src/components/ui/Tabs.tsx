@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +18,13 @@ export function Tabs({
   variant?: "underline" | "pill";
 }) {
   const [active, setActive] = useState(defaultValue ?? items[0]?.value);
+
+  useEffect(() => {
+    if (defaultValue && items.some((it) => it.value === defaultValue) && active !== defaultValue) {
+      setActive(defaultValue);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultValue, items.length]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

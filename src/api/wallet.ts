@@ -117,3 +117,69 @@ export async function withdraw(payload: WithdrawPayload): Promise<WithdrawResult
   const r = await api.post<Envelope<WithdrawResult>>("/wallet/withdraw", payload);
   return r.data.data;
 }
+
+export interface BankAccountDTO {
+  id: string;
+  userId: string;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  isDefault: boolean;
+  isVerified: boolean;
+  balance: number;
+  lastSynced: string;
+  createdAt: string;
+}
+
+export interface MpesaAccountDTO {
+  id: string;
+  userId: string;
+  phoneNumber: string;
+  isDefault: boolean;
+  isVerified: boolean;
+  lastUsed: string;
+}
+
+export async function listBankAccounts(): Promise<BankAccountDTO[]> {
+  const r = await api.get<Envelope<{ accounts: BankAccountDTO[] } | BankAccountDTO[]>>("/wallet/bank-accounts");
+  const d = r.data.data as { accounts?: BankAccountDTO[] } | BankAccountDTO[];
+  return Array.isArray(d) ? d : d.accounts ?? [];
+}
+
+export async function linkBankAccount(payload: {
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+}): Promise<BankAccountDTO> {
+  const r = await api.post<Envelope<BankAccountDTO>>("/wallet/bank-accounts", payload);
+  return r.data.data;
+}
+
+export async function unlinkBankAccount(id: string): Promise<void> {
+  await api.delete(`/wallet/bank-accounts/${id}`);
+}
+
+export async function setDefaultBankAccount(id: string): Promise<BankAccountDTO> {
+  const r = await api.post<Envelope<BankAccountDTO>>(`/wallet/bank-accounts/${id}/default`, {});
+  return r.data.data;
+}
+
+export async function listMpesaAccounts(): Promise<MpesaAccountDTO[]> {
+  const r = await api.get<Envelope<{ accounts: MpesaAccountDTO[] } | MpesaAccountDTO[]>>("/wallet/mpesa-accounts");
+  const d = r.data.data as { accounts?: MpesaAccountDTO[] } | MpesaAccountDTO[];
+  return Array.isArray(d) ? d : d.accounts ?? [];
+}
+
+export async function linkMpesaAccount(payload: { phoneNumber: string }): Promise<MpesaAccountDTO> {
+  const r = await api.post<Envelope<MpesaAccountDTO>>("/wallet/mpesa-accounts", payload);
+  return r.data.data;
+}
+
+export async function unlinkMpesaAccount(id: string): Promise<void> {
+  await api.delete(`/wallet/mpesa-accounts/${id}`);
+}
+
+export async function setDefaultMpesaAccount(id: string): Promise<MpesaAccountDTO> {
+  const r = await api.post<Envelope<MpesaAccountDTO>>(`/wallet/mpesa-accounts/${id}/default`, {});
+  return r.data.data;
+}

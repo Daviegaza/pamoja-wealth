@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useParams, useSearchParams, Link } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Users, Wallet, Calendar, TrendingUp, ArrowLeft, Settings,
   CreditCard, Landmark, Copy, Check, Building2, HandCoins,
@@ -11,7 +11,7 @@ import { useGroupStore } from "@/stores/groupStore";
 import type { Chama, Member, MpesaAccount, Role } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useLoans } from "@/hooks/useLoans";
-import { useChatStore } from "@/stores/chatStore";
+import { getChatMessages, sendChatMessage } from "@/api/chat";
 import { StatCard } from "@/components/cards/StatCard";
 import { MemberCard, computeTrustScore } from "@/components/cards/MemberCard";
 import { ChamaChat } from "@/components/common/ChamaChat";
@@ -25,7 +25,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { getMockDatabase } from "@/mock";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { getChama, getMembers, type ChamaDetail, type ChamaDetailMember } from "@/api/chama";
+import { getChama, getMembers, updateChama, updateMemberRole, inviteToChama, type ChamaDetail, type ChamaDetailMember, type ChamaRole } from "@/api/chama";
 
 const MANAGEMENT_ROLES: Role[] = ["owner", "admin", "chairperson"];
 
@@ -65,6 +65,8 @@ function toMember(m: ChamaDetailMember): Member {
 
 export default function ChamaDetailPage() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") ?? undefined;
   const chamaId = id ?? "";
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -101,8 +103,30 @@ export default function ChamaDetailPage() {
 
   const pendingLoans = loans.filter((l) => l.chamaId === chamaId && l.status === "pending");
 
-  const chatMessages = useChatStore((s) => s.messages);
-  const sendMessage = useChatStore((s) => s.sendMessage);
+  const chatQuery = useQuery({
+    queryKey: ["chat", "messages", chamaId],
+    queryFn: () => getChatMessages(chamaId),
+    enabled: !!chamaId,
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
+  });
+  const chatMessages = (chatQuery.data ?? []).map((m) => ({
+    id: m.id,
+    chamaId: m.chamaId,
+    userId: m.userId,
+    userName: m.userName,
+    userAvatar: m.userAvatar ?? "",
+    content: m.content,
+    timestamp: m.createdAt,
+  }));
+  const sendChatMutation = useMutation({
+    mutationFn: (content: string) => sendChatMessage(chamaId, content),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["chat", "messages", chamaId] }),
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      toast.error(msg || "Failed to send message.");
+    },
+  });
 
   const dbUsers = getMockDatabase().users;
   const verifiedUserIds = new Set(dbUsers.filter((u) => u.isVerified).map((u) => u.id));
@@ -117,6 +141,12 @@ export default function ChamaDetailPage() {
   const [editDescription, setEditDescription] = useState("");
   const [editContribution, setEditContribution] = useState("");
   const [editLocation, setEditLocation] = useState("");
+  const [editPaybill, setEditPaybill] = useState("");
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteMethod, setInviteMethod] = useState<"phone" | "email" | "username" | "link">("phone");
+  const [inviteValue, setInviteValue] = useState("");
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [inviteResult, setInviteResult] = useState<{ link: string; inviteCode?: string } | null>(null);
 
   const [inviteCode, setInviteCode] = useState("");
   const [inviteCopied, setInviteCopied] = useState(false);
@@ -131,6 +161,39 @@ export default function ChamaDetailPage() {
     setInviteCopied(true);
     toast.success("Invite code copied!");
   };
+
+  const inviteMutation = useMutation({
+    mutationFn: () => inviteToChama(chamaId, {
+      method: inviteMethod,
+      ...(inviteMethod === "phone" && { phone: inviteValue.trim() }),
+      ...(inviteMethod === "email" && { email: inviteValue.trim() }),
+      ...(inviteMethod === "username" && { username: inviteValue.trim() }),
+      message: inviteMessage.trim() || undefined,
+    }),
+    onSuccess: (data) => {
+      setInviteResult({ link: data.link, inviteCode: data.inviteCode });
+      qc.invalidateQueries({ queryKey: ["chamas", "detail", chamaId] });
+      toast.success("Invite sent!");
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      toast.error(msg || "Failed to send invite.");
+    },
+  });
+
+  const roleMutation = useMutation({
+    mutationFn: ({ userId, role, customTitle }: { userId: string; role: ChamaRole; customTitle?: string | null }) =>
+      updateMemberRole(chamaId, userId, role, customTitle),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["chamas", "detail", chamaId] });
+      qc.invalidateQueries({ queryKey: ["chamas", "members", chamaId] });
+      toast.success("Role updated.");
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      toast.error(msg || "Failed to update role.");
+    },
+  });
 
   if (detailQuery.isLoading) {
     return (
@@ -169,6 +232,7 @@ export default function ChamaDetailPage() {
     setEditDescription(chama.description);
     setEditContribution(String(chama.monthlyContribution));
     setEditLocation(chama.location);
+    setEditPaybill((chama as unknown as { paybillAccountNumber?: string }).paybillAccountNumber ?? "");
     setManageOpen(true);
   };
 
@@ -182,9 +246,22 @@ export default function ChamaDetailPage() {
       toast.error("Monthly contribution must be at least KES 100.");
       return;
     }
-    await qc.invalidateQueries({ queryKey: ["chamas", "detail", chamaId] });
-    toast.success("Chama settings updated.");
-    setManageOpen(false);
+    try {
+      await updateChama(chamaId, {
+        name: editName.trim(),
+        description: editDescription.trim() || undefined,
+        monthlyContribution: monthly,
+        location: editLocation.trim() || undefined,
+        paybillAccountNumber: editPaybill.trim() || undefined,
+      });
+      await qc.invalidateQueries({ queryKey: ["chamas", "detail", chamaId] });
+      await qc.invalidateQueries({ queryKey: ["chamas", "mine"] });
+      toast.success("Chama settings updated.");
+      setManageOpen(false);
+    } catch (err) {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      toast.error(msg || "Failed to update chama.");
+    }
   };
 
   const tabs: TabItem[] = [];
@@ -198,14 +275,8 @@ export default function ChamaDetailPage() {
           chamaId={chamaId}
           messages={chatMessages.filter((m) => m.chamaId === chamaId)}
           onSend={(content) => {
-            if (!user) return;
-            sendMessage({
-              chamaId,
-              userId: user.id,
-              userName: user.fullName,
-              userAvatar: user.avatarUrl,
-              content,
-            });
+            if (!user || !content.trim()) return;
+            sendChatMutation.mutate(content.trim());
           }}
           currentUser={{
             id: user?.id ?? "",
@@ -224,7 +295,39 @@ export default function ChamaDetailPage() {
       content: (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {members.length > 0 ? members.slice(0, 10).map((m) => (
-            <MemberCard key={m.id} member={m} trustScore={computeTrustScore(m, loans, verifiedUserIds.has(m.userId))} />
+            <div key={m.id} className="space-y-2">
+              <MemberCard member={m} trustScore={computeTrustScore(m, loans, verifiedUserIds.has(m.userId))} />
+              {(myRole === "owner" || myRole === "admin") && m.userId !== user?.id && (
+                <div className="space-y-1.5">
+                  <select
+                    value={m.role}
+                    onChange={(e) => roleMutation.mutate({ userId: m.userId, role: e.target.value as ChamaRole })}
+                    disabled={roleMutation.isPending}
+                    className="w-full text-xs rounded-lg border border-gray-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] px-2 py-1.5 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
+                  >
+                    <option value="member">Member</option>
+                    <option value="secretary">Secretary</option>
+                    <option value="treasurer">Treasurer</option>
+                    <option value="chairperson">Chairperson</option>
+                    <option value="admin">Admin</option>
+                    {myRole === "owner" && <option value="owner">Owner</option>}
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Custom title (optional) e.g. Auditor, Advisor…"
+                    defaultValue={(m as unknown as { customTitle?: string }).customTitle ?? ""}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      const cur = ((m as unknown as { customTitle?: string }).customTitle ?? "").trim();
+                      if (val !== cur) {
+                        roleMutation.mutate({ userId: m.userId, role: m.role as ChamaRole, customTitle: val || null });
+                      }
+                    }}
+                    className="w-full text-xs rounded-lg border border-gray-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] px-2 py-1.5 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
+                  />
+                </div>
+              )}
+            </div>
           )) : (
             <p className="text-sm text-gray-400 col-span-2 py-8 text-center">No members yet.</p>
           )}
@@ -307,9 +410,14 @@ export default function ChamaDetailPage() {
             </div>
           )}
 
-          <Button variant="outline" size="sm" leftIcon={<Settings className="h-3.5 w-3.5" />} onClick={openManage}>
-            Edit Chama Settings
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" leftIcon={<Settings className="h-3.5 w-3.5" />} onClick={openManage}>
+              Edit Chama Settings
+            </Button>
+            <Button variant="premium" size="sm" onClick={() => { setInviteResult(null); setInviteOpen(true); }}>
+              + Add Member
+            </Button>
+          </div>
 
           <div className="card-hover p-5">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Share Invite</h3>
@@ -398,7 +506,73 @@ export default function ChamaDetailPage() {
         <StatCard label="Monthly Contribution" value={formatCurrency(chama.monthlyContribution)} icon={Calendar} iconColor="icon-gradient-purple" />
       </div>
 
-      <Tabs items={tabs} />
+      <Tabs items={tabs} defaultValue={initialTab} />
+
+      <Modal isOpen={inviteOpen} onClose={() => { setInviteOpen(false); setInviteResult(null); setInviteValue(""); setInviteMessage(""); }} title="Add Member" description="Invite someone to join this chama.">
+        {inviteResult ? (
+          <div className="space-y-4">
+            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/[0.08] p-4 text-center">
+              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Invite created!</p>
+              {inviteResult.inviteCode && (
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Code: <code className="font-mono font-bold text-brand-600 dark:text-brand-400">{inviteResult.inviteCode}</code></p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <input readOnly value={inviteResult.link} className="flex-1 rounded-xl border border-gray-200 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] px-3 py-2 text-xs font-mono select-all" />
+              <Button size="sm" variant="secondary" onClick={() => { navigator.clipboard.writeText(inviteResult.link); toast.success("Link copied!"); }}>Copy</Button>
+            </div>
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(`Join my chama on Pamoja Wealth: ${inviteResult.link}`)}`}
+              target="_blank" rel="noopener noreferrer"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
+            >
+              Share via WhatsApp
+            </a>
+            <Button variant="outline" className="w-full" onClick={() => { setInviteResult(null); setInviteValue(""); }}>Invite another</Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-4 gap-1.5">
+              {(["phone", "email", "username", "link"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => { setInviteMethod(m); setInviteValue(""); }}
+                  className={`rounded-xl px-2 py-2 text-[11px] font-semibold capitalize border transition-colors ${inviteMethod === m ? "border-brand-500 bg-brand-50 dark:bg-brand-500/[0.08] text-brand-700 dark:text-brand-400" : "border-gray-200 dark:border-white/[0.08] text-gray-500 hover:border-brand-300"}`}
+                >
+                  {m === "link" ? "Share Link" : m}
+                </button>
+              ))}
+            </div>
+            {inviteMethod !== "link" && (
+              <Input
+                label={inviteMethod === "phone" ? "Phone number" : inviteMethod === "email" ? "Email address" : "Username"}
+                placeholder={inviteMethod === "phone" ? "+254 7XX XXX XXX" : inviteMethod === "email" ? "user@example.com" : "@username"}
+                value={inviteValue}
+                onChange={(e) => setInviteValue(e.target.value)}
+              />
+            )}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Personal note (optional)</label>
+              <textarea
+                rows={2}
+                value={inviteMessage}
+                onChange={(e) => setInviteMessage(e.target.value)}
+                placeholder="Hey! Join our savings group…"
+                className="w-full rounded-xl border border-gray-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] px-3 py-2 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none resize-none"
+              />
+            </div>
+            <Button
+              variant="premium"
+              className="w-full"
+              onClick={() => inviteMutation.mutate()}
+              disabled={inviteMutation.isPending || (inviteMethod !== "link" && !inviteValue.trim())}
+            >
+              {inviteMutation.isPending ? "Sending…" : inviteMethod === "link" ? "Generate invite link" : `Send invite via ${inviteMethod}`}
+            </Button>
+          </div>
+        )}
+      </Modal>
 
       <Modal isOpen={manageOpen} onClose={() => setManageOpen(false)} title="Manage Chama" description="Edit your chama settings.">
         <div className="space-y-4">
@@ -406,6 +580,7 @@ export default function ChamaDetailPage() {
           <Input label="Description" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="What is this chama about?" />
           <Input label="Monthly Contribution (KES)" type="number" value={editContribution} onChange={(e) => setEditContribution(e.target.value)} />
           <Input label="Location" value={editLocation} onChange={(e) => setEditLocation(e.target.value)} placeholder="City, Country" />
+          <Input label="Paybill / Receive Number" value={editPaybill} onChange={(e) => setEditPaybill(e.target.value)} placeholder="e.g. 247247 or M-Pesa Till number" hint="Number where contributions are received." />
           <Button className="w-full" variant="premium" onClick={handleSave}>Save Changes</Button>
         </div>
       </Modal>

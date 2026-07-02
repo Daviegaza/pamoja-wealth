@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard, Users, Wallet, CreditCard, TrendingUp, Calendar, Vote, FileText,
   BarChart3, Bot, Bell, Settings, Building2, ArrowLeftRight, UserCircle, LifeBuoy,
+  MessageSquare,
 } from "lucide-react";
 import type { Permission } from "@/types";
 
@@ -27,6 +28,7 @@ export const PRIMARY_NAV: NavItem[] = [
   { label: "Documents", path: "/documents", icon: FileText },
   { label: "Analytics", path: "/analytics", icon: BarChart3, permission: "view_analytics" },
   { label: "My Network", path: "/network", icon: Users },
+  { label: "Messages", path: "/messages", icon: MessageSquare },
   { label: "AI Assistant", path: "/ai-assistant", icon: Bot },
 ];
 

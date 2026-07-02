@@ -24,6 +24,7 @@ import { useChamaStore } from "@/stores/chamaStore";
 import { useAuth } from "@/hooks/useAuth";
 import { getMockDatabase } from "@/mock";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { api } from "@/api/axios";
 import type { Transaction, ContributionRecord } from "@/types";
 
 const statusVariant: Record<Transaction["status"], "success" | "warning" | "danger" | "default"> = {
@@ -71,6 +72,52 @@ export default function TreasuryPage() {
   const { page, totalPages, paginated, goToPage } = usePagination(chamaTxns.slice(0, 200), 8);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  const sendReminder = async (c: ContributionRecord) => {
+    try {
+      await api.post("/notifications/remind", {
+        chamaId: c.chamaId,
+        memberId: c.memberId,
+        contributionId: c.id,
+        amount: c.amount,
+        month: c.month,
+      });
+      toast.success(`Reminder sent to ${c.memberName}`);
+    } catch (err) {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      toast.error(msg || `Failed to send reminder to ${c.memberName}`);
+    }
+  };
+
+  const generateStatement = () => {
+    const chamaName = activeChama?.name ?? "All chamas";
+    const now = new Date();
+    const summary = [
+      ["PAMOJA WEALTH — TREASURY STATEMENT"],
+      [`Chama:,${chamaName}`],
+      [`Generated:,${now.toISOString()}`],
+      [`Balance:,${formatCurrency(activeChama ? activeChama.totalFunds : chamas.reduce((s, c) => s + c.totalFunds, 0))}`],
+      [`Inflow (MTD):,${formatCurrency(totalCollected)}`],
+      [`Collection Rate:,${collectionRate}%`],
+      [""],
+      ["Member,Amount,Month,Status,Method,Paid At"],
+    ];
+    const escape = (v: string) => v.includes(",") || v.includes('"') || v.includes("\n") ? `"${v.replace(/"/g, '""')}"` : v;
+    const rows = filteredContributions.map((c) => [
+      escape(c.memberName), c.amount.toString(), escape(c.month), c.status, c.method, c.paidAt ?? "",
+    ].join(","));
+    const csv = [...summary.map((r) => r.join(",")), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `statement-${chamaName.replace(/\s+/g, "-").toLowerCase()}-${now.toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("Statement generated and downloaded");
+  };
 
   const exportCSV = () => {
     const headers = ["Name", "Amount", "Month", "Status", "Method"];
@@ -186,7 +233,7 @@ export default function TreasuryPage() {
       header: "",
       render: (c: ContributionRecord) => (
         c.status !== "paid" ? (
-          <Button size="sm" variant="ghost-brand" onClick={() => toast.success(`Reminder sent to ${c.memberName}`)}>
+          <Button size="sm" variant="ghost-brand" onClick={() => sendReminder(c)}>
             Remind
           </Button>
         ) : null
@@ -205,7 +252,7 @@ export default function TreasuryPage() {
           <Button size="sm" variant="outline" leftIcon={<Download className="h-3.5 w-3.5" />} onClick={exportCSV}>
             Export Report
           </Button>
-          <Button size="sm" variant="premium" leftIcon={<FileText className="h-3.5 w-3.5" />} onClick={() => toast.success("Statement generated.")}>
+          <Button size="sm" variant="premium" leftIcon={<FileText className="h-3.5 w-3.5" />} onClick={generateStatement}>
             Statement
           </Button>
         </div>

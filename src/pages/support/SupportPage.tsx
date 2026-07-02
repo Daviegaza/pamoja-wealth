@@ -1,19 +1,43 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { LifeBuoy, Mail, MessageSquare, Phone, ExternalLink, ArrowUpRight } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Tabs } from "@/components/ui/Tabs";
 import { motion } from "framer-motion";
-
-const CHANNELS = [
-  { icon: MessageSquare, title: "Live Chat", desc: "Chat with our support team in real time", action: "Start chat", gradient: "icon-gradient-brand", onClick: () => toast.success("Live chat opened. A support agent will join shortly.") },
-  { icon: Mail, title: "Email Support", desc: "support@pamojawealth.app", extra: "Replies within 24 hours", action: "Send email", gradient: "icon-gradient-blue", href: "mailto:support@pamojawealth.app" },
-  { icon: Phone, title: "Phone Support", desc: "+254 700 000 000", extra: "Mon–Fri, 8am–6pm EAT", action: "Call now", gradient: "icon-gradient-emerald", href: "tel:+254700000000" },
-];
+import { api } from "@/api/axios";
 
 export default function SupportPage() {
+  const navigate = useNavigate();
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [description, setDescription] = useState("");
+
+  const CHANNELS = [
+    { icon: MessageSquare, title: "Live Chat", desc: "Chat with our AI assistant in real time", action: "Start chat", gradient: "icon-gradient-brand", onClick: () => navigate("/ai-assistant") },
+    { icon: Mail, title: "Email Support", desc: "support@pamojawealth.app", extra: "Replies within 24 hours", action: "Send email", gradient: "icon-gradient-blue", href: "mailto:support@pamojawealth.app" },
+    { icon: Phone, title: "Phone Support", desc: "+254 700 000 000", extra: "Mon–Fri, 8am–6pm EAT", action: "Call now", gradient: "icon-gradient-emerald", href: "tel:+254700000000" },
+  ];
+
+  async function handleSubmitTicket(e: React.FormEvent) {
+    e.preventDefault();
+    if (!subject.trim() || !description.trim()) return;
+    setSubmitting(true);
+    try {
+      await api.post("/support/tickets", { subject: subject.trim(), description: description.trim() });
+      toast.success("Support ticket submitted successfully.");
+      setSubmitted(true);
+      setSubject("");
+      setDescription("");
+    } catch (err) {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      toast.error(msg || "Failed to submit ticket. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -77,26 +101,21 @@ export default function SupportPage() {
                 </Button>
               </motion.div>
             ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setSubmitted(true);
-                  toast.success("Support ticket submitted successfully.");
-                }}
-                className="card-hover p-6 space-y-4"
-              >
-                <Input label="Subject" placeholder="Briefly describe your issue" required />
+              <form onSubmit={handleSubmitTicket} className="card-hover p-6 space-y-4">
+                <Input label="Subject" placeholder="Briefly describe your issue" required value={subject} onChange={(e) => setSubject(e.target.value)} />
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
                   <textarea
                     placeholder="Provide as much detail as possible"
                     required
                     rows={4}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
                     className="w-full rounded-xl border border-gray-300 dark:border-white/[0.07] bg-white dark:bg-white/[0.03] px-3.5 py-3 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 transition-all duration-200 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20 focus:outline-none resize-none"
                   />
                 </div>
-                <Button type="submit" className="w-full" variant="premium">
-                  Submit ticket
+                <Button type="submit" className="w-full" variant="premium" disabled={submitting}>
+                  {submitting ? "Submitting…" : "Submit ticket"}
                 </Button>
               </form>
             ),
@@ -111,7 +130,7 @@ export default function SupportPage() {
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5 max-w-md mx-auto">
                   Browse our help center for guides on contributions, loans, meetings, and account management.
                 </p>
-                <Button variant="outline" size="sm" className="mt-4" onClick={() => toast.info("Opening Help Center knowledge base...")}>
+                <Button variant="outline" size="sm" className="mt-4" onClick={() => navigate("/help")}>
                   Open Help Center
                 </Button>
               </div>

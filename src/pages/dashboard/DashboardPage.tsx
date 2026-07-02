@@ -135,10 +135,13 @@ export default function DashboardPage() {
   const [loanAmount, setLoanAmount] = useState("50000");
   const [loanPurpose, setLoanPurpose] = useState("Business expansion");
   const [selectedVoteId, setSelectedVoteId] = useState("");
+  const activeChamaId = useChamaStore((s) => s.activeChamaId);
+  const [targetChamaId, setTargetChamaId] = useState<string>(activeChamaId ?? "");
 
-  // Per-chama role derivation
+  // Per-chama role derivation. Backend /chamas returns only chamas the user
+  // is a member of, so `chamas` from the store IS the user's chama list.
   const myMemberships = storeMembers.filter((m) => m.userId === user?.id);
-  const myChamas = chamas.filter((c) => myMemberships.some((m) => m.chamaId === c.id));
+  const myChamas = chamas;
   const myChamaIds = new Set(myChamas.map((c) => c.id));
 
   const primaryMember = myMemberships[0];
@@ -469,8 +472,11 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* ===== CONTRIBUTE MODAL ===== */}
-      <Modal isOpen={contributeOpen} onClose={() => setContributeOpen(false)} title="Make a Contribution" description="Contribute to your chama via M-Pesa, bank, or card.">
+      <Modal isOpen={contributeOpen} onClose={() => setContributeOpen(false)} title="Make a Contribution" description={targetChamaId ? `Contributing to ${myChamas.find(c => c.id === targetChamaId)?.name ?? "chama"}` : "Choose a chama to contribute to"}>
         <div className="space-y-4">
+          <Select label="Chama" value={targetChamaId} onChange={(e) => setTargetChamaId(e.target.value)}
+            options={myChamas.map((c) => ({ label: c.name, value: c.id }))}
+          />
           <div className="grid grid-cols-3 gap-2">
             {[
               { value: "mpesa", label: "M-Pesa", icon: "📱" },
@@ -497,12 +503,30 @@ export default function DashboardPage() {
       </Modal>
 
       {/* ===== LOAN APPLICATION MODAL ===== */}
-      <Modal isOpen={loanOpen} onClose={() => setLoanOpen(false)} title="Apply for a Loan" description="Submit your loan application for member review.">
+      <Modal isOpen={loanOpen} onClose={() => setLoanOpen(false)} title="Apply for a Loan" description={targetChamaId ? `Applying from ${myChamas.find(c => c.id === targetChamaId)?.name ?? "chama"}` : "Choose which chama to apply from"}>
         <div className="space-y-4">
-          <Input label="Amount (KES)" type="number" value={loanAmount} onChange={(e) => setLoanAmount(e.target.value)} placeholder="How much do you need?" />
-          <Select label="Purpose" value={loanPurpose} onChange={(e) => setLoanPurpose(e.target.value)}
-            options={["Business expansion", "School fees", "Medical emergency", "Home renovation", "Land purchase", "Vehicle purchase", "Wedding expenses", "Agricultural investment"].map((p) => ({ label: p, value: p }))}
+          <Select label="Chama" value={targetChamaId} onChange={(e) => setTargetChamaId(e.target.value)}
+            options={myChamas.map((c) => ({ label: c.name, value: c.id }))}
           />
+          <Input label="Amount (KES)" type="number" value={loanAmount} onChange={(e) => setLoanAmount(e.target.value)} placeholder="How much do you need?" />
+          <Input
+            label="Purpose"
+            value={loanPurpose}
+            onChange={(e) => setLoanPurpose(e.target.value)}
+            placeholder="e.g. Business expansion, school fees, medical…"
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {["Business expansion", "School fees", "Medical emergency", "Home renovation", "Land purchase", "Vehicle", "Wedding", "Agriculture"].map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setLoanPurpose(p)}
+                className={`rounded-full px-2.5 py-1 text-[10px] font-medium border transition-colors ${loanPurpose === p ? "bg-brand-50 border-brand-500 text-brand-700 dark:bg-brand-500/[0.1] dark:text-brand-400" : "bg-white dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.08] text-gray-500 hover:border-brand-300"}`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
           <div className="rounded-xl bg-gray-50 dark:bg-white/[0.02] p-3 text-xs text-gray-500">
             <strong>Terms:</strong> 12% interest · 6 months · Requires 2 guarantors · Approval within 48 hours
           </div>
@@ -513,7 +537,17 @@ export default function DashboardPage() {
       </Modal>
 
       {/* ===== VOTE MODAL ===== */}
-      <Modal isOpen={voteOpen} onClose={() => setVoteOpen(false)} title="Cast Your Vote" description={votes.find((v) => v.id === selectedVoteId)?.description}>
+      <Modal
+        isOpen={voteOpen}
+        onClose={() => setVoteOpen(false)}
+        title={votes.find((v) => v.id === selectedVoteId)?.title ?? "Cast Your Vote"}
+        description={(() => {
+          const v = votes.find((x) => x.id === selectedVoteId);
+          if (!v) return "";
+          const chamaName = myChamas.find((c) => c.id === v.chamaId)?.name;
+          return `${chamaName ? `${chamaName} · ` : ""}${v.description ?? ""}`;
+        })()}
+      >
         <div className="space-y-3">
           {votes.find((v) => v.id === selectedVoteId)?.options.map((opt) => (
             <button key={opt.id} onClick={() => handleCastVote(opt.id)}

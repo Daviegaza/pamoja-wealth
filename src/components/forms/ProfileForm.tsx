@@ -5,17 +5,26 @@ import { profileSchema, type ProfileFormValues } from "@/schemas/profile.schema"
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
+import { useAuthStore } from "@/stores/authStore";
+import { api } from "@/api/axios";
 
 export function ProfileForm() {
   const { user } = useAuth();
+  const setUser = useAuthStore((s) => s.setUser);
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: user ? { fullName: user.fullName, email: user.email, phone: user.phone, location: user.location, bio: "" } : undefined,
   });
 
-  const onSubmit = async () => {
-    await new Promise((r) => setTimeout(r, 500));
-    toast.success("Profile updated successfully.");
+  const onSubmit = async (data: ProfileFormValues) => {
+    try {
+      await api.patch("/users/me", data);
+      if (user) setUser({ ...user, fullName: data.fullName, email: data.email, phone: data.phone, location: data.location });
+      toast.success("Profile updated successfully.");
+    } catch (err) {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      toast.error(msg || "Failed to update profile. Please try again.");
+    }
   };
 
   return (
