@@ -1,9 +1,10 @@
 import { useState } from "react";
 import {
   ArrowDownToLine, ArrowUpFromLine, Building2, Smartphone, CreditCard,
-  Plus, CheckCircle, Receipt, QrCode, HandCoins, Search,
+  Plus, CheckCircle, Receipt, QrCode, HandCoins, Search, Loader2, AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ContributeModal } from "@/components/payments/ContributeModal";
 import { useGroupStore } from "@/stores/groupStore";
 import type { Group } from "@/types";
@@ -16,16 +17,18 @@ import { Badge } from "@/components/ui/Badge";
 import { DataTable, type Column } from "@/components/tables/DataTable";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
-import { useWallet } from "@/hooks/useWallet";
-import { useTransactions } from "@/hooks/useTransactions";
 import { useAuth } from "@/hooks/useAuth";
 import { usePagination } from "@/hooks/usePagination";
 import { Pagination } from "@/components/common/Pagination";
 import { Tabs } from "@/components/ui/Tabs";
-import { useWalletStore } from "@/stores/walletStore";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { motion } from "framer-motion";
-import type { Transaction, BankAccount, MpesaAccount, BankProvider } from "@/types";
+import type { Transaction, BankAccount, MpesaAccount, BankProvider, Wallet as WalletType } from "@/types";
+import {
+  getWallet, getHistory, listTransactions,
+  deposit as depositApi, withdraw as withdrawApi,
+  type WalletDTO, type WalletTransactionDTO,
+} from "@/api/wallet";
 
 const statusVariant: Record<Transaction["status"], "success" | "warning" | "danger" | "default"> = {
   completed: "success", pending: "warning", failed: "danger", reversed: "default",
@@ -36,10 +39,49 @@ const bankLabels: Record<string, string> = {
   absa: "ABSA Bank", stanbic: "Stanbic Bank", dtb: "DTB Bank", family: "Family Bank",
 };
 
+function mapTransaction(dto: WalletTransactionDTO): Transaction {
+  return {
+    id: dto.id,
+    userId: dto.userId,
+    chamaId: dto.chamaId ?? undefined,
+    type: dto.type,
+    amount: dto.amount,
+    date: dto.createdAt,
+    status: dto.status,
+    description: dto.description,
+    reference: dto.reference,
+    balanceAfter: dto.balanceAfter,
+  };
+}
+
+function toWalletShape(dto: WalletDTO | undefined): WalletType {
+  return {
+    id: dto?.id ?? "",
+    userId: dto?.userId ?? "",
+    balance: dto?.balance ?? 0,
+    currency: dto?.currency ?? "KES",
+    pendingBalance: dto?.pendingBalance ?? 0,
+    totalDeposits: dto?.totalDeposits ?? 0,
+    totalWithdrawals: dto?.totalWithdrawals ?? 0,
+    lastTransactionAt: dto?.lastTransactionAt ?? new Date().toISOString(),
+  };
+}
+
 export default function WalletPage() {
-  const { wallet, history } = useWallet();
-  const { deposit, withdraw } = useWalletStore();
-  const transactions = useTransactions();
+  const qc = useQueryClient();
+  const walletQuery = useQuery({ queryKey: ["wallet", "me"], queryFn: getWallet });
+  const historyQuery = useQuery({
+    queryKey: ["wallet", "history", { days: 90 }],
+    queryFn: () => getHistory({ days: 90 }),
+  });
+  const txnsQuery = useQuery({
+    queryKey: ["wallet", "transactions", { page: 1, pageSize: 100 }],
+    queryFn: () => listTransactions({ page: 1, pageSize: 100 }),
+  });
+
+  const wallet = toWalletShape(walletQuery.data);
+  const history = historyQuery.data ?? [];
+  const transactions: Transaction[] = (txnsQuery.data?.items ?? []).map(mapTransaction);
   const { user } = useAuth();
 
   // Modals
@@ -83,8 +125,47 @@ export default function WalletPage() {
   // Link M-Pesa form state
   const [linkMpesaPhone, setLinkMpesaPhone] = useState("");
 
-  const myTransactions = transactions.filter((t) => t.userId === user?.id).slice(0, 100);
-  const { page, totalPages, paginated, goToPage } = usePagination(myTransactions.length ? myTransactions : transactions.slice(0, 50), 8);
+  const myTransactions = transactions.slice(0, 100);
+  const { page, totalPages, paginated, goToPage } = usePagination(myTransactions, 8);
+
+  const depositMutation = useMutation({
+    mutationFn: depositApi,
+    onSuccess: (_res, vars) => {
+      qc.invalidateQueries({ queryKey: ["wallet", "me"] });
+      qc.invalidateQueries({ queryKey: ["wallet", "transactions"] });
+      qc.invalidateQueries({ queryKey: ["wallet", "history"] });
+      const methodLabel = vars.method === "mpesa" ? "M-Pesa" : vars.method === "bank" ? "Bank Transfer" : "Card";
+      toast.success(`${formatCurrency(vars.amount)} deposit via ${methodLabel} initiated.`);
+      setDepositOpen(false);
+      setDepositAmount("");
+      setDepositMethod("mpesa");
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message
+        ?? "Deposit failed. Please try again.";
+      toast.error(msg);
+    },
+  });
+
+  const withdrawMutation = useMutation({
+    mutationFn: withdrawApi,
+    onSuccess: (_res, vars) => {
+      qc.invalidateQueries({ queryKey: ["wallet", "me"] });
+      qc.invalidateQueries({ queryKey: ["wallet", "transactions"] });
+      qc.invalidateQueries({ queryKey: ["wallet", "history"] });
+      const methodLabel = vars.method === "mpesa" ? "M-Pesa" : "Bank";
+      toast.success(`${formatCurrency(vars.amount)} withdrawal to ${vars.destination} via ${methodLabel} initiated.`);
+      setWithdrawOpen(false);
+      setWithdrawAmount("");
+      setWithdrawDestination("");
+      setWithdrawMethod("bank");
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message
+        ?? "Withdrawal failed. Please try again.";
+      toast.error(msg);
+    },
+  });
 
   const columns: Column<Transaction>[] = [
     { key: "reference", header: "Ref" },
@@ -113,12 +194,7 @@ export default function WalletPage() {
       toast.error("Minimum deposit is KES 100.");
       return;
     }
-    deposit(amount, depositMethod);
-    const methodLabel = depositMethod === "mpesa" ? "M-Pesa" : depositMethod === "bank" ? "Bank Transfer" : "Card";
-    toast.success(`${formatCurrency(amount)} deposited via ${methodLabel}.`);
-    setDepositOpen(false);
-    setDepositAmount("");
-    setDepositMethod("mpesa");
+    depositMutation.mutate({ amount, method: depositMethod });
   };
 
   // ----- Withdraw -----
@@ -136,13 +212,7 @@ export default function WalletPage() {
       toast.error("Please enter a destination account or phone number.");
       return;
     }
-    withdraw(amount, withdrawMethod);
-    const methodLabel = withdrawMethod === "mpesa" ? "M-Pesa" : "Bank";
-    toast.success(`${formatCurrency(amount)} withdrawn to ${withdrawDestination} via ${methodLabel}.`);
-    setWithdrawOpen(false);
-    setWithdrawAmount("");
-    setWithdrawDestination("");
-    setWithdrawMethod("bank");
+    withdrawMutation.mutate({ amount, method: withdrawMethod, destination: withdrawDestination.trim() });
   };
 
   // ----- Link Bank -----
@@ -196,6 +266,9 @@ export default function WalletPage() {
     setLinkMpesaPhone("");
   };
 
+  const isLoading = walletQuery.isLoading;
+  const hasError = walletQuery.isError;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -208,6 +281,19 @@ export default function WalletPage() {
           <Button leftIcon={<ArrowUpFromLine className="h-4 w-4" />} variant="outline" onClick={() => setWithdrawOpen(true)}>Withdraw</Button>
         </div>
       </div>
+
+      {isLoading && (
+        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 py-3">
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading your wallet...
+        </div>
+      )}
+      {hasError && !isLoading && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-200 dark:border-red-500/20 bg-red-50/60 dark:bg-red-500/[0.05] p-3 text-sm text-red-700 dark:text-red-400">
+          <AlertCircle className="h-4 w-4" />
+          <span>We couldn't load your wallet. Please try again.</span>
+          <button onClick={() => walletQuery.refetch()} className="ml-auto text-xs font-semibold underline">Retry</button>
+        </div>
+      )}
 
       {/* One-tap "Contribute to a group" entry-point — opens the picker, then ContributeModal. */}
       <motion.button
@@ -362,8 +448,20 @@ export default function WalletPage() {
             label: "Transactions",
             content: (
               <div>
-                <DataTable data={paginated} columns={columns} keyExtractor={(t) => t.id} />
-                <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} />
+                {txnsQuery.isLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 py-6">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading transactions...
+                  </div>
+                ) : txnsQuery.isError ? (
+                  <p className="text-sm text-red-500 py-6 text-center">Failed to load transactions.</p>
+                ) : myTransactions.length === 0 ? (
+                  <p className="text-sm text-gray-400 py-8 text-center">No transactions yet.</p>
+                ) : (
+                  <>
+                    <DataTable data={paginated} columns={columns} keyExtractor={(t) => t.id} />
+                    <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} />
+                  </>
+                )}
               </div>
             ),
           },
@@ -397,8 +495,8 @@ export default function WalletPage() {
               <strong>Lipa na M-Pesa:</strong> Paybill 247247, Account: Your Chama ID. Contributions are auto-detected.
             </div>
           )}
-          <Button className="w-full" variant="premium" onClick={handleDeposit}>
-            Proceed to Pay {depositAmount ? formatCurrency(parseInt(depositAmount)) : ""}
+          <Button className="w-full" variant="premium" onClick={handleDeposit} disabled={depositMutation.isPending}>
+            {depositMutation.isPending ? "Processing..." : `Proceed to Pay ${depositAmount ? formatCurrency(parseInt(depositAmount)) : ""}`}
           </Button>
         </div>
       </Modal>
@@ -433,8 +531,8 @@ export default function WalletPage() {
           {parseInt(withdrawAmount) > wallet.balance && (
             <p className="text-xs text-red-500">Amount exceeds available balance of {formatCurrency(wallet.balance)}.</p>
           )}
-          <Button className="w-full" variant="premium" onClick={handleWithdraw}>
-            Withdraw {withdrawAmount ? formatCurrency(parseInt(withdrawAmount)) : ""}
+          <Button className="w-full" variant="premium" onClick={handleWithdraw} disabled={withdrawMutation.isPending}>
+            {withdrawMutation.isPending ? "Processing..." : `Withdraw ${withdrawAmount ? formatCurrency(parseInt(withdrawAmount)) : ""}`}
           </Button>
         </div>
       </Modal>

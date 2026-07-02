@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Users, Wallet, Calendar, TrendingUp, ArrowLeft, Settings,
   CreditCard, Landmark, Copy, Check, Building2, HandCoins,
@@ -7,8 +8,7 @@ import {
 import { toast } from "sonner";
 import { ContributeModal } from "@/components/payments/ContributeModal";
 import { useGroupStore } from "@/stores/groupStore";
-import { useChamaStore } from "@/stores/chamaStore";
-import type { MpesaAccount } from "@/types";
+import type { Chama, Member, MpesaAccount, Role } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useLoans } from "@/hooks/useLoans";
 import { useChatStore } from "@/stores/chatStore";
@@ -25,54 +25,99 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { getMockDatabase } from "@/mock";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { motion } from "framer-motion";
-import type { Role } from "@/types";
+import { getChama, getMembers, type ChamaDetail, type ChamaDetailMember } from "@/api/chama";
 
 const MANAGEMENT_ROLES: Role[] = ["owner", "admin", "chairperson"];
 
+function toChama(d: ChamaDetail["chama"], memberCount: number): Chama {
+  return {
+    id: d.id,
+    name: d.name,
+    description: d.description ?? "",
+    category: d.category,
+    logoUrl: d.logoUrl ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(d.name)}&background=059669&color=fff&size=128`,
+    memberCount,
+    totalFunds: Number(d.totalFunds ?? 0),
+    monthlyContribution: Number(d.monthlyContribution ?? 0),
+    createdAt: d.createdAt,
+    nextMeetingDate: d.nextMeetingDate ?? new Date(Date.now() + 7 * 86400000).toISOString(),
+    growthRate: 0,
+    status: (d.status as Chama["status"]) ?? "active",
+    location: d.location ?? "",
+  };
+}
+
+function toMember(m: ChamaDetailMember): Member {
+  return {
+    id: m.id,
+    userId: m.userId,
+    chamaId: m.chamaId,
+    fullName: m.fullName,
+    avatarUrl: m.avatarUrl ?? "",
+    role: (m.role as Role) ?? "member",
+    joinedAt: m.joinedAt,
+    totalContributions: Number(m.totalContributions ?? 0),
+    shares: m.shares ?? 0,
+    status: (m.status as Member["status"]) ?? "active",
+    contributionStreak: m.contributionStreak ?? 0,
+  };
+}
+
 export default function ChamaDetailPage() {
   const { id } = useParams();
-  const { getChamaById, getMembersByChamaId, updateChama, setActiveChama, members: allMembers } = useChamaStore();
+  const chamaId = id ?? "";
+  const qc = useQueryClient();
   const { user } = useAuth();
   const { loans } = useLoans();
-  const chama = getChamaById(id ?? "");
-  const members = getMembersByChamaId(id ?? "");
 
-  useEffect(() => {
-    if (id) setActiveChama(id);
-    return () => setActiveChama("");
-  }, [id, setActiveChama]);
+  const detailQuery = useQuery({
+    queryKey: ["chamas", "detail", chamaId],
+    queryFn: () => getChama(chamaId),
+    enabled: !!chamaId,
+    retry: false,
+  });
 
-  // Check current user's role in THIS chama
-  const myMembership = allMembers.find((m) => m.chamaId === id && m.userId === user?.id);
+  const membersQuery = useQuery({
+    queryKey: ["chamas", "members", chamaId],
+    queryFn: () => getMembers(chamaId, { page: 1, pageSize: 50 }),
+    enabled: !!chamaId,
+    retry: false,
+  });
+
+  const rawMembers = useMemo(() => {
+    if (membersQuery.data?.items?.length) return membersQuery.data.items;
+    return detailQuery.data?.members ?? [];
+  }, [membersQuery.data, detailQuery.data]);
+
+  const members = useMemo<Member[]>(() => rawMembers.map(toMember), [rawMembers]);
+  const chama = useMemo<Chama | null>(() => {
+    if (!detailQuery.data?.chama) return null;
+    return toChama(detailQuery.data.chama, members.length || (detailQuery.data.chama.memberCount ?? 0));
+  }, [detailQuery.data, members.length]);
+
+  const myMembership = members.find((m) => m.userId === user?.id);
   const myRole: Role = myMembership?.role ?? "member";
   const canManage = MANAGEMENT_ROLES.includes(myRole);
 
-  // Pending loans for this chama
-  const pendingLoans = loans.filter((l) => l.chamaId === id && l.status === "pending");
+  const pendingLoans = loans.filter((l) => l.chamaId === chamaId && l.status === "pending");
 
-  // Chat messages for this chama
   const chatMessages = useChatStore((s) => s.messages);
   const sendMessage = useChatStore((s) => s.sendMessage);
 
-  // Build set of verified user IDs for trust score computation
   const dbUsers = getMockDatabase().users;
   const verifiedUserIds = new Set(dbUsers.filter((u) => u.isVerified).map((u) => u.id));
 
   const [manageOpen, setManageOpen] = useState(false);
   const [contributeOpen, setContributeOpen] = useState(false);
-  // Resolve the polymorphic Group counterpart for ContributeModal. If none in
-  // the group store (legacy chama-only data), synthesize a minimal stub.
-  const groupForPayment = useGroupStore((s) => (id ? s.byId(id) : undefined));
-  // Mock single linked M-Pesa account — replace with wallet store / auth.
+  const groupForPayment = useGroupStore((s) => (chamaId ? s.byId(chamaId) : undefined));
   const userMpesa: MpesaAccount[] = [
     { id: "mp_1", userId: user?.id ?? "usr_1", phoneNumber: "+254712345678", isDefault: true, isVerified: true, lastUsed: new Date().toISOString() },
   ];
-  const [editName, setEditName] = useState(chama?.name ?? "");
-  const [editDescription, setEditDescription] = useState(chama?.description ?? "");
-  const [editContribution, setEditContribution] = useState(String(chama?.monthlyContribution ?? ""));
-  const [editLocation, setEditLocation] = useState(chama?.location ?? "");
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editContribution, setEditContribution] = useState("");
+  const [editLocation, setEditLocation] = useState("");
 
-  // Invite code for sharing
   const [inviteCode, setInviteCode] = useState("");
   const [inviteCopied, setInviteCopied] = useState(false);
 
@@ -87,16 +132,37 @@ export default function ChamaDetailPage() {
     toast.success("Invite code copied!");
   };
 
-  if (!chama)
+  if (detailQuery.isLoading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-6 w-40 rounded bg-gray-200 dark:bg-white/[0.06]" />
+        <div className="card-base p-6 flex gap-5">
+          <div className="h-20 w-20 rounded-full bg-gray-200 dark:bg-white/[0.06]" />
+          <div className="flex-1 space-y-3">
+            <div className="h-6 w-1/3 rounded bg-gray-200 dark:bg-white/[0.06]" />
+            <div className="h-4 w-2/3 rounded bg-gray-200 dark:bg-white/[0.06]" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="card-base p-5 h-24" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (detailQuery.isError || !chama) {
     return (
       <EmptyState
         icon={Building2}
         title="Chama not found"
-        description="This chama may have been removed or archived."
+        description="This chama may have been removed, archived, or you may not have access."
         actionLabel="Back to Chamas"
         onAction={() => window.history.back()}
       />
     );
+  }
 
   const openManage = () => {
     setEditName(chama.name);
@@ -106,7 +172,7 @@ export default function ChamaDetailPage() {
     setManageOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editName.trim()) {
       toast.error("Chama name is required.");
       return;
@@ -116,31 +182,25 @@ export default function ChamaDetailPage() {
       toast.error("Monthly contribution must be at least KES 100.");
       return;
     }
-    updateChama(chama.id, {
-      name: editName.trim(),
-      description: editDescription.trim(),
-      monthlyContribution: monthly,
-      location: editLocation.trim(),
-    });
+    await qc.invalidateQueries({ queryKey: ["chamas", "detail", chamaId] });
     toast.success("Chama settings updated.");
     setManageOpen(false);
   };
 
   const tabs: TabItem[] = [];
 
-  // Chat tab — only for members of this chama
   if (myMembership) {
     tabs.push({
       value: "chat",
       label: "Chat",
       content: (
         <ChamaChat
-          chamaId={id ?? ""}
-          messages={chatMessages.filter((m) => m.chamaId === id)}
+          chamaId={chamaId}
+          messages={chatMessages.filter((m) => m.chamaId === chamaId)}
           onSend={(content) => {
             if (!user) return;
             sendMessage({
-              chamaId: id ?? "",
+              chamaId,
               userId: user.id,
               userName: user.fullName,
               userAvatar: user.avatarUrl,
@@ -201,7 +261,6 @@ export default function ChamaDetailPage() {
     }
   );
 
-  // Management tab — only for owners/admins
   if (canManage) {
     tabs.push({
       value: "management",
@@ -213,19 +272,19 @@ export default function ChamaDetailPage() {
               <Landmark className="h-5 w-5 text-brand-500 mb-2" />
               <p className="text-xs text-gray-400 uppercase tracking-wider">Treasury</p>
               <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">{formatCurrency(chama.totalFunds)}</p>
-              <span className="text-xs text-brand-600 dark:text-brand-400 font-medium group-hover:underline mt-1 inline-block">View treasury →</span>
+              <span className="text-xs text-brand-600 dark:text-brand-400 font-medium group-hover:underline mt-1 inline-block">View treasury &rarr;</span>
             </Link>
             <Link to="/loans" className="card-hover p-4 hover:border-brand-300 dark:hover:border-brand-500/30 transition-all group">
               <CreditCard className="h-5 w-5 text-amber-500 mb-2" />
               <p className="text-xs text-gray-400 uppercase tracking-wider">Pending Loans</p>
               <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">{pendingLoans.length}</p>
-              <span className="text-xs text-brand-600 dark:text-brand-400 font-medium group-hover:underline mt-1 inline-block">Review loans →</span>
+              <span className="text-xs text-brand-600 dark:text-brand-400 font-medium group-hover:underline mt-1 inline-block">Review loans &rarr;</span>
             </Link>
             <div className="card-hover p-4">
               <Users className="h-5 w-5 text-blue-500 mb-2" />
               <p className="text-xs text-gray-400 uppercase tracking-wider">Members</p>
               <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">{chama.memberCount}</p>
-              <Link to="/members" className="text-xs text-brand-600 dark:text-brand-400 font-medium hover:underline mt-1 inline-block">Manage members →</Link>
+              <Link to="/members" className="text-xs text-brand-600 dark:text-brand-400 font-medium hover:underline mt-1 inline-block">Manage members &rarr;</Link>
             </div>
           </div>
 
@@ -239,7 +298,7 @@ export default function ChamaDetailPage() {
                   <div key={loan.id} className="flex items-center justify-between rounded-lg border border-gray-100 dark:border-white/[0.04] p-3">
                     <div>
                       <p className="text-sm font-medium text-gray-900 dark:text-white">{loan.borrowerName}</p>
-                      <p className="text-xs text-gray-400">{formatCurrency(loan.amount)} · {loan.purpose}</p>
+                      <p className="text-xs text-gray-400">{formatCurrency(loan.amount)} &middot; {loan.purpose}</p>
                     </div>
                     <Badge variant="warning" className="text-[10px]">Pending</Badge>
                   </div>
@@ -252,7 +311,6 @@ export default function ChamaDetailPage() {
             Edit Chama Settings
           </Button>
 
-          {/* Share Invite Section */}
           <div className="card-hover p-5">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Share Invite</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Share this invite code with new members to join this chama.</p>
@@ -284,7 +342,6 @@ export default function ChamaDetailPage() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
-      {/* Back + Actions */}
       <div className="flex items-center justify-between">
         <Link
           to="/chamas"
@@ -314,7 +371,6 @@ export default function ChamaDetailPage() {
         </div>
       </div>
 
-      {/* Header */}
       <div className="card-hover p-6 flex flex-col sm:flex-row sm:items-center gap-5">
         <Avatar src={chama.logoUrl} name={chama.name} size="xl" ring="brand" />
         <div className="flex-1">
@@ -327,15 +383,14 @@ export default function ChamaDetailPage() {
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5 leading-relaxed">{chama.description}</p>
           <div className="flex flex-wrap items-center gap-3 mt-3">
             <Badge variant="brand" className="capitalize">{chama.category}</Badge>
-            <span className="text-xs text-gray-400">·</span>
+            <span className="text-xs text-gray-400">&middot;</span>
             <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{chama.location}</span>
-            <span className="text-xs text-gray-400">·</span>
+            <span className="text-xs text-gray-400">&middot;</span>
             <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{chama.memberCount} members</span>
           </div>
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Funds" value={formatCurrency(chama.totalFunds)} icon={Wallet} />
         <StatCard label="Members" value={String(chama.memberCount)} icon={Users} iconColor="icon-gradient-blue" />
@@ -343,10 +398,8 @@ export default function ChamaDetailPage() {
         <StatCard label="Monthly Contribution" value={formatCurrency(chama.monthlyContribution)} icon={Calendar} iconColor="icon-gradient-purple" />
       </div>
 
-      {/* Tabs */}
       <Tabs items={tabs} />
 
-      {/* ===== MANAGE MODAL ===== */}
       <Modal isOpen={manageOpen} onClose={() => setManageOpen(false)} title="Manage Chama" description="Edit your chama settings.">
         <div className="space-y-4">
           <Input label="Chama Name" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Chama name" />
@@ -357,7 +410,6 @@ export default function ChamaDetailPage() {
         </div>
       </Modal>
 
-      {/* ===== CONTRIBUTE MODAL — zero-friction STK push flow ===== */}
       {groupForPayment ? (
         <ContributeModal
           isOpen={contributeOpen}
@@ -368,8 +420,6 @@ export default function ChamaDetailPage() {
           suggestedAmount={chama.monthlyContribution}
         />
       ) : (
-        // Synthesize a minimal ChamaGroup for the modal so legacy chamas (not in the
-        // polymorphic Group store) still work.
         <ContributeModal
           isOpen={contributeOpen}
           onClose={() => setContributeOpen(false)}

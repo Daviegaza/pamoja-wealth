@@ -1,7 +1,20 @@
+import { useQuery } from "@tanstack/react-query";
 import { AIChatWidget } from "@/components/dialogs/AIChatWidget";
 import { AIInsightCard } from "@/components/common/AIInsightCard";
+import { getInsights } from "@/api/ai";
 
 export default function AIAssistantPage() {
+  const insightsQuery = useQuery({
+    queryKey: ["ai", "insights"],
+    queryFn: () => getInsights(),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const errorMessage =
+    (insightsQuery.error as { response?: { data?: { error?: { message?: string } } } })
+      ?.response?.data?.error?.message || "AI is currently unavailable.";
+
   return (
     <div className="space-y-6">
       <div>
@@ -14,11 +27,10 @@ export default function AIAssistantPage() {
         </div>
         <div className="space-y-4">
           <AIInsightCard
-            insights={[
-              "Your portfolio risk has decreased 4% this quarter due to increased Treasury Bill allocation.",
-              "3 members have missed contributions for 2+ months — consider a friendly reminder.",
-              "Loan default rate across your chamas is 2.1%, well below the platform average of 5.8%.",
-            ]}
+            insights={insightsQuery.data ?? []}
+            isLoading={insightsQuery.isLoading}
+            isError={insightsQuery.isError}
+            errorMessage={errorMessage}
           />
         </div>
       </div>

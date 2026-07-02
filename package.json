@@ -4,10 +4,17 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node -e \"require('fs').rmSync('node_modules/.vite',{recursive:true,force:true})\"",
     "dev": "vite",
+    "dev:force": "node -e \"require('fs').rmSync('node_modules/.vite',{recursive:true,force:true})\" && vite --force",
+    "dev:kill": "pkill -f \"pamoja-wealth/node_modules/.bin/vite\" || true",
+    "dev:fresh": "npm run dev:kill && sleep 1 && npm run dev",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:smoke": "node e2e/smoke.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -29,6 +36,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.62.0",

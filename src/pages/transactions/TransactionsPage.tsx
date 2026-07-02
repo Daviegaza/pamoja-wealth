@@ -1,64 +1,75 @@
-import { useMemo } from "react";
-import { ArrowLeftRight } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowLeftRight, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { DataTable, type Column } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Select } from "@/components/ui/Select";
 import { Pagination } from "@/components/common/Pagination";
 import { EmptyState } from "@/components/common/EmptyState";
-import { useAuth } from "@/hooks/useAuth";
-import { useTransactions } from "@/hooks/useTransactions";
 import { useSearch } from "@/hooks/useSearch";
-import { useFilter } from "@/hooks/useFilter";
 import { useSort } from "@/hooks/useSort";
 import { usePagination } from "@/hooks/usePagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Transaction } from "@/types";
 import { useChamaStore } from "@/stores/chamaStore";
+import { listTransactions, type WalletTransactionDTO, type TxType } from "@/api/wallet";
 
 const statusVariant: Record<Transaction["status"], "success" | "warning" | "danger" | "default"> = {
   completed: "success", pending: "warning", failed: "danger", reversed: "default",
 };
 
+type TypeFilter = "all" | TxType;
+
+function mapTransaction(dto: WalletTransactionDTO): Transaction {
+  return {
+    id: dto.id,
+    userId: dto.userId,
+    chamaId: dto.chamaId ?? undefined,
+    type: dto.type,
+    amount: dto.amount,
+    date: dto.createdAt,
+    status: dto.status,
+    description: dto.description,
+    reference: dto.reference,
+    balanceAfter: dto.balanceAfter,
+  };
+}
+
 export default function TransactionsPage() {
-  const transactions = useTransactions();
   const activeChamaId = useChamaStore((s) => s.activeChamaId);
   const chamas = useChamaStore((s) => s.chamas);
-  const members = useChamaStore((s) => s.members);
-  const { user } = useAuth();
 
-  const myMemberRecords = members.filter((m) => m.userId === user?.id);
-  const myChamaIds = new Set(myMemberRecords.map((m) => m.chamaId));
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [page, setPage] = useState(1);
+  const pageSize = 12;
 
-  const displayTxns = useMemo(() => {
-    let filtered = transactions.filter((t) => t.chamaId != null && myChamaIds.has(t.chamaId));
-    if (activeChamaId) filtered = filtered.filter((t) => t.chamaId === activeChamaId);
-    return filtered;
-  }, [transactions, myChamaIds, activeChamaId]);
+  const params = useMemo(
+    () => ({
+      page,
+      pageSize,
+      ...(typeFilter !== "all" ? { type: typeFilter } : {}),
+      ...(activeChamaId ? { chamaId: activeChamaId } : {}),
+    }),
+    [page, typeFilter, activeChamaId]
+  );
+
+  const txnsQuery = useQuery({
+    queryKey: ["wallet", "transactions", params],
+    queryFn: () => listTransactions(params),
+  });
+
+  const items: Transaction[] = useMemo(
+    () => (txnsQuery.data?.items ?? []).map(mapTransaction),
+    [txnsQuery.data]
+  );
+  const total = txnsQuery.data?.meta?.total ?? items.length;
+  const totalPages = txnsQuery.data?.meta?.totalPages ?? 1;
 
   const activeChama = activeChamaId ? chamas.find((c) => c.id === activeChamaId) : null;
-  const { query, setQuery, results: searched } = useSearch(displayTxns, ["reference", "description"]);
-  const { value, setValue, results: filtered } = useFilter(searched, "type");
-  const { sorted, sortKey, direction, toggleSort } = useSort(filtered, "date");
-  const { page, totalPages, paginated, goToPage } = usePagination(sorted, 12);
-
-  if (myChamaIds.size === 0) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Transactions</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">View all transactions across your chamas.</p>
-        </div>
-        <EmptyState
-          icon={ArrowLeftRight}
-          title="No chamas yet"
-          description="Join or create a chama to see transactions."
-          actionLabel="View Chamas"
-          onAction={() => window.location.href = "/chamas"}
-        />
-      </div>
-    );
-  }
+  const { query, setQuery, results: searched } = useSearch(items, ["reference", "description"]);
+  const { sorted, sortKey, direction, toggleSort } = useSort(searched, "date");
+  const { paginated } = usePagination(sorted, pageSize);
 
   const columns: Column<Transaction>[] = [
     { key: "reference", header: "Reference", sortable: true },
@@ -73,15 +84,17 @@ export default function TransactionsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Transactions</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{displayTxns.length.toLocaleString()} transaction{displayTxns.length !== 1 ? "s" : ""}{activeChama ? ` in ${activeChama.name}` : ` across your ${myChamaIds.size} chama${myChamaIds.size !== 1 ? "s" : ""}`}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          {total.toLocaleString()} transaction{total !== 1 ? "s" : ""}{activeChama ? ` in ${activeChama.name}` : ""}
+        </p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
         <SearchInput value={query} onChange={setQuery} placeholder="Search by reference or description..." />
         <div className="max-w-xs">
           <Select
-            value={value === "all" ? "all" : value}
-            onChange={(e) => setValue(e.target.value as typeof value)}
+            value={typeFilter}
+            onChange={(e) => { setTypeFilter(e.target.value as TypeFilter); setPage(1); }}
             options={[
               { label: "All types", value: "all" }, { label: "Contribution", value: "contribution" }, { label: "Withdrawal", value: "withdrawal" },
               { label: "Loan Disbursement", value: "loan_disbursement" }, { label: "Loan Repayment", value: "loan_repayment" },
@@ -91,12 +104,24 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {paginated.length === 0 ? (
+      {txnsQuery.isLoading ? (
+        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 py-8 justify-center">
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading transactions...
+        </div>
+      ) : txnsQuery.isError ? (
+        <EmptyState
+          icon={ArrowLeftRight}
+          title="Failed to load transactions"
+          description="We couldn't reach the server. Please try again."
+          actionLabel="Retry"
+          onAction={() => txnsQuery.refetch()}
+        />
+      ) : paginated.length === 0 ? (
         <EmptyState icon={ArrowLeftRight} title="No transactions" description="Transactions will appear here once you start contributing." />
       ) : (
         <DataTable data={paginated} columns={columns} keyExtractor={(t) => t.id} sortKey={sortKey} sortDirection={direction} onSort={toggleSort} />
       )}
-      <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} />
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   );
 }

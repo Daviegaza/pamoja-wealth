@@ -20,11 +20,16 @@ html {
 }
 
 body {
-  @apply bg-gray-50 text-gray-900 antialiased font-sans transition-colors duration-300;
+  @apply bg-canvas text-gray-900 antialiased font-sans transition-colors duration-300;
+  background-image:
+    radial-gradient(1200px 600px at 100% -10%, rgba(16, 185, 129, 0.06), transparent 60%),
+    radial-gradient(900px 500px at -10% 100%, rgba(20, 184, 166, 0.05), transparent 60%);
+  background-attachment: fixed;
 }
 
 .dark body {
   @apply bg-neutral-950 text-gray-100;
+  background-image: none;
 }
 
 /* ===== Selection ===== */
@@ -72,19 +77,25 @@ body {
 
 /* ===== Card Variants ===== */
 .card-base {
-  @apply rounded-2xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.03] shadow-soft transition-all duration-200;
+  @apply rounded-2xl border border-gray-200/70 dark:border-white/[0.06] bg-white dark:bg-white/[0.03] shadow-soft transition-all duration-200;
 }
 .card-hover {
-  @apply card-base hover:shadow-soft-lg hover:-translate-y-0.5;
+  @apply card-base hover:shadow-soft-lg hover:border-gray-300/80 dark:hover:border-white/[0.12] hover:-translate-y-0.5;
+}
+.card-elevated {
+  @apply rounded-2xl border border-gray-200/60 dark:border-white/[0.06] bg-white dark:bg-white/[0.03] shadow-premium transition-all duration-300;
 }
 .card-glass {
   @apply glass-premium rounded-2xl;
 }
 .card-gradient {
-  @apply rounded-2xl border border-transparent bg-gradient-to-br from-white to-gray-50/80 dark:from-neutral-900 dark:to-neutral-950 shadow-soft;
+  @apply rounded-2xl border border-white/60 dark:border-transparent bg-gradient-to-br from-white to-brand-50/40 dark:from-neutral-900 dark:to-neutral-950 shadow-premium;
 }
 .card-border-accent {
-  @apply card-base border-l-4 border-l-brand-500;
+  @apply card-base border-l-4 border-l-brand-600;
+}
+.card-metric {
+  @apply rounded-2xl border border-gray-200/70 dark:border-white/[0.06] bg-gradient-to-br from-white via-white to-brand-50/30 dark:from-white/[0.03] dark:via-white/[0.02] dark:to-brand-500/[0.04] shadow-premium transition-all duration-300;
 }
 
 /* ===== Text Gradients ===== */

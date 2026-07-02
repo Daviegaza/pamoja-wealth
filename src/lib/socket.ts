@@ -52,6 +52,7 @@ class MockSocket {
 function buildRealSocket(): Socket {
   const token = typeof window !== "undefined" ? localStorage.getItem("pamoja_token") : null;
   const s = io(SOCKET_URL, {
+    path: "/ws",
     auth: { token },
     transports: ["websocket", "polling"],
     reconnection: true,
@@ -95,11 +96,11 @@ if (typeof document !== "undefined" && !USE_MOCKS) {
 
 // ===== Room helpers =====
 export function joinChama(chamaId: string): void {
-  socket.emit("join:chama", { chamaId });
+  socket.emit("join:chama", chamaId);
 }
 
 export function leaveChama(chamaId: string): void {
-  socket.emit("leave:chama", { chamaId });
+  socket.emit("leave:chama", chamaId);
 }
 
 // ===== React hook =====

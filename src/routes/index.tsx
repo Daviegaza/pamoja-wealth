@@ -1,10 +1,12 @@
-import { lazy, Suspense, type ComponentType } from "react";
+import { Suspense, type ComponentType } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { lazyWithRetry as lazy } from "@/lib/lazyWithRetry";
 import { PublicLayout } from "@/layouts/PublicLayout";
 import { AuthLayout } from "@/layouts/AuthLayout";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { ProtectedRoute } from "@/components/common/ProtectedRoute";
 import { SkeletonLoader } from "@/components/common/SkeletonLoader";
+import { RouteErrorBoundary } from "@/components/common/RouteErrorBoundary";
 
 const LandingPage = lazy(() => import("@/pages/landing"));
 const AboutPage = lazy(() => import("@/pages/public/AboutPage"));
@@ -56,6 +58,7 @@ function withSuspense(Component: ComponentType) {
 const router = createBrowserRouter([
   {
     element: <PublicLayout />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       { path: "/", element: withSuspense(LandingPage) },
       { path: "/about", element: withSuspense(AboutPage) },
@@ -70,6 +73,7 @@ const router = createBrowserRouter([
   },
   {
     element: <AuthLayout />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       { path: "/login", element: withSuspense(LoginPage) },
       { path: "/register", element: withSuspense(RegisterPage) },
@@ -83,6 +87,7 @@ const router = createBrowserRouter([
         <DashboardLayout />
       </ProtectedRoute>
     ),
+    errorElement: <RouteErrorBoundary />,
     children: [
       { path: "/dashboard", element: withSuspense(DashboardPage) },
       { path: "/chamas", element: withSuspense(MyChamasPage) },
@@ -112,8 +117,16 @@ const router = createBrowserRouter([
     ],
   },
   { path: "*", element: withSuspense(NotFoundPage) },
-]);
+], {
+  future: {
+    v7_relativeSplatPath: true,
+    v7_fetcherPersist: true,
+    v7_normalizeFormMethod: true,
+    v7_partialHydration: true,
+    v7_skipActionErrorRevalidation: true,
+  },
+});
 
 export function AppRouter() {
-  return <RouterProvider router={router} />;
+  return <RouterProvider router={router} future={{ v7_startTransition: true }} />;
 }

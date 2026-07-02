@@ -68,7 +68,7 @@ export function Modal({ isOpen, onClose, title, description, children, size = "m
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-gray-950/45 backdrop-blur-md"
             onClick={onClose}
           />
 
@@ -78,9 +78,9 @@ export function Modal({ isOpen, onClose, title, description, children, size = "m
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className={cn(
-              "relative w-full rounded-2xl bg-white dark:bg-neutral-900 p-6 shadow-2xl border border-gray-100 dark:border-white/[0.06] max-h-[90vh] overflow-y-auto",
+              "relative w-full rounded-3xl bg-white dark:bg-neutral-900 p-6 shadow-premium-lg ring-1 ring-gray-200/70 dark:ring-white/[0.06] max-h-[90vh] overflow-y-auto",
               sizes[size]
             )}
             role="dialog"
@@ -88,7 +88,7 @@ export function Modal({ isOpen, onClose, title, description, children, size = "m
             aria-labelledby={title ? titleId : undefined}
           >
             {/* Gradient top accent */}
-            <div className="absolute top-0 left-4 right-4 h-0.5 rounded-full bg-gradient-to-r from-brand-500 via-brand-400 to-transparent opacity-50" />
+            <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-brand-500/60 to-transparent" />
 
             <button
               onClick={onClose}

@@ -1,39 +1,53 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { loanApplicationSchema, type LoanApplicationFormValues } from "@/schemas/loan.schema";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
-import { useLoans } from "@/hooks/useLoans";
-import { useAuth } from "@/hooks/useAuth";
 import { useChamaStore } from "@/stores/chamaStore";
+import { createLoan, type CreateLoanPayload } from "@/api/loans";
 
 export function LoanApplicationForm({ onSuccess }: { onSuccess?: () => void }) {
-  const { applyForLoan } = useLoans();
-  const { user } = useAuth();
+  const qc = useQueryClient();
   const activeChamaId = useChamaStore((s) => s.activeChamaId);
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoanApplicationFormValues>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoanApplicationFormValues>({
     resolver: zodResolver(loanApplicationSchema),
     defaultValues: { termMonths: 6 },
   });
 
+  const createMut = useMutation({
+    mutationFn: (payload: CreateLoanPayload) => createLoan(payload),
+    onSuccess: () => {
+      toast.success("Loan application submitted for review.");
+      qc.invalidateQueries({ queryKey: ["loans"] });
+      onSuccess?.();
+    },
+    onError: (err: unknown) => {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Could not submit loan application.";
+      toast.error(msg);
+    },
+  });
+
   const onSubmit = async (values: LoanApplicationFormValues) => {
-    applyForLoan({
-      chamaId: activeChamaId ?? "cha_1",
-      borrowerId: user?.id ?? "usr_1",
-      borrowerName: user?.fullName ?? "You",
-      borrowerAvatar: user?.avatarUrl ?? "",
+    if (!activeChamaId) {
+      toast.error("Select a chama before applying for a loan.");
+      return;
+    }
+    await createMut.mutateAsync({
+      chamaId: activeChamaId,
       amount: values.amount,
-      interestRate: 12,
       termMonths: values.termMonths,
       purpose: values.purpose,
-      appliedDate: new Date().toISOString(),
-      dueDate: new Date(Date.now() + values.termMonths * 30 * 86400000).toISOString(),
-      guarantors: [],
+      guarantorIds: [],
     });
-    toast.success("Loan application submitted for review.");
-    onSuccess?.();
   };
 
   return (
@@ -48,7 +62,7 @@ export function LoanApplicationForm({ onSuccess }: { onSuccess?: () => void }) {
       />
       <Input label="Purpose of loan" placeholder="e.g. Business expansion" error={errors.purpose?.message} {...register("purpose")} />
       <Input label="Guarantor email (optional)" type="email" placeholder="guarantor@example.com" error={errors.guarantorEmail?.message} {...register("guarantorEmail")} />
-      <Button type="submit" className="w-full" isLoading={isSubmitting}>Submit application</Button>
+      <Button type="submit" className="w-full" isLoading={isSubmitting || createMut.isPending}>Submit application</Button>
     </form>
   );
 }

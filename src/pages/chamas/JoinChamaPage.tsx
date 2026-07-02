@@ -1,15 +1,14 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { joinChamaSchema, type JoinChamaFormValues } from "@/schemas/chama.schema";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { ChamaCard } from "@/components/cards/ChamaCard";
-import { useChamaStore } from "@/stores/chamaStore";
 import { Search, CheckCircle2, Clock, Mail, Sparkles } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import * as chamaApi from "@/api/chama";
 
 type Tab = "code" | "discover" | "invitations";
@@ -25,12 +24,12 @@ interface InvitationItem {
 }
 
 export default function JoinChamaPage() {
-  const localChamas = useChamaStore((s) => s.chamas);
+  const navigate = useNavigate();
+  const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>("discover");
   const [requestStatus, setRequestStatus] = useState<"idle" | "pending" | "done">("idle");
   const [requestedCode, setRequestedCode] = useState("");
-  const [publicChamas, setPublicChamas] = useState<chamaApi.ChamaDTO[]>([]);
-  const [invitations, setInvitations] = useState<InvitationItem[]>([]);
+  const [joiningId, setJoiningId] = useState<string | null>(null);
 
   const {
     register,
@@ -40,16 +39,17 @@ export default function JoinChamaPage() {
     resolver: zodResolver(joinChamaSchema),
   });
 
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([chamaApi.discover().catch(() => ({ items: [] })), chamaApi.myInvitations().catch(() => [])])
-      .then(([disc, invs]) => {
-        if (cancelled) return;
-        setPublicChamas(("items" in disc ? disc.items : []) as chamaApi.ChamaDTO[]);
-        setInvitations(invs as InvitationItem[]);
-      });
-    return () => { cancelled = true; };
-  }, []);
+  const discoverQuery = useQuery({
+    queryKey: ["chamas", "discover"],
+    queryFn: () => chamaApi.discover({ page: 1, pageSize: 24 }),
+  });
+  const publicChamas = discoverQuery.data?.items ?? [];
+
+  const invitationsQuery = useQuery({
+    queryKey: ["chamas", "my-invitations"],
+    queryFn: () => chamaApi.myInvitations() as Promise<InvitationItem[]>,
+  });
+  const invitations = invitationsQuery.data ?? [];
 
   const onSubmit = async (values: JoinChamaFormValues) => {
     setRequestedCode(values.inviteCode);
@@ -64,7 +64,10 @@ export default function JoinChamaPage() {
   async function handleAcceptInvitation(token: string) {
     try {
       await chamaApi.acceptInvitation(token);
-      setInvitations((prev) => prev.filter((i) => i.token !== token));
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["chamas", "mine"] }),
+        qc.invalidateQueries({ queryKey: ["chamas", "my-invitations"] }),
+      ]);
       toast.success("Invitation accepted! Welcome aboard.");
     } catch (err: any) {
       toast.error(err?.response?.data?.error?.message || "Could not accept");
@@ -74,7 +77,7 @@ export default function JoinChamaPage() {
   async function handleDeclineInvitation(token: string) {
     try {
       await chamaApi.declineInvitation(token);
-      setInvitations((prev) => prev.filter((i) => i.token !== token));
+      await qc.invalidateQueries({ queryKey: ["chamas", "my-invitations"] });
       toast.message("Invitation declined.");
     } catch (err: any) {
       toast.error(err?.response?.data?.error?.message || "Could not decline");
@@ -82,13 +85,23 @@ export default function JoinChamaPage() {
   }
 
   async function handleJoinPublic(chamaId: string) {
+    setJoiningId(chamaId);
     try {
-      const r = await chamaApi.joinChama(chamaId, {}) as any;
-      if (r?.status === "approved") toast.success("Joined! Find it under My Chamas.");
-      else if (r?.status === "pending") toast.success("Join request sent — admin will approve.");
-      else toast.success("Done.");
+      const r = (await chamaApi.joinChama(chamaId, {})) as any;
+      await qc.invalidateQueries({ queryKey: ["chamas", "mine"] });
+      if (r?.status === "approved") {
+        toast.success("Joined! Redirecting...");
+        navigate(`/chamas/${chamaId}`);
+      } else if (r?.status === "pending") {
+        toast.success("Join request sent - admin will approve.");
+      } else {
+        toast.success("Done.");
+        navigate(`/chamas/${chamaId}`);
+      }
     } catch (err: any) {
       toast.error(err?.response?.data?.error?.message || "Could not join");
+    } finally {
+      setJoiningId(null);
     }
   }
 
@@ -129,7 +142,21 @@ export default function JoinChamaPage() {
 
       {tab === "discover" && (
         <div>
-          {publicChamas.length === 0 ? (
+          {discoverQuery.isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="card-base p-5 space-y-3 animate-pulse">
+                  <div className="h-4 w-2/3 rounded bg-gray-200 dark:bg-white/[0.06]" />
+                  <div className="h-3 w-full rounded bg-gray-200 dark:bg-white/[0.06]" />
+                  <div className="h-8 w-full rounded bg-gray-200 dark:bg-white/[0.06]" />
+                </div>
+              ))}
+            </div>
+          ) : discoverQuery.isError ? (
+            <div className="card-hover p-8 text-center">
+              <p className="text-sm text-red-500">Could not load discover results. Please try again.</p>
+            </div>
+          ) : publicChamas.length === 0 ? (
             <div className="card-hover p-8 text-center">
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 No public chamas yet. Try the invite code tab or wait for an invitation.
@@ -170,7 +197,13 @@ export default function JoinChamaPage() {
                         {c.memberCount ?? 0} members · KES {Number(c.monthlyContribution).toLocaleString()}/mo
                       </div>
                     )}
-                    <Button variant="premium" size="sm" className="w-full" onClick={() => handleJoinPublic(c.id)}>
+                    <Button
+                      variant="premium"
+                      size="sm"
+                      className="w-full"
+                      isLoading={joiningId === c.id}
+                      onClick={() => handleJoinPublic(c.id)}
+                    >
                       {c.type === "fundraiser" ? "View campaign" : "Join chama"}
                     </Button>
                   </div>
@@ -258,15 +291,6 @@ export default function JoinChamaPage() {
         </div>
       )}
 
-      {/* Local cached chama cards as fallback for offline */}
-      {localChamas.length > 0 && publicChamas.length === 0 && tab === "discover" && (
-        <div className="opacity-60">
-          <h3 className="text-sm font-semibold text-gray-500 mb-3">Cached samples</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {localChamas.slice(0, 3).map((c) => <ChamaCard key={c.id} chama={c} />)}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -12,21 +12,21 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary:
-    "bg-gradient-to-r from-brand-600 to-brand-500 text-white hover:from-brand-700 hover:to-brand-600 shadow-soft-sm hover:shadow-soft-md active:shadow-none border border-brand-400/20",
+    "bg-gradient-to-b from-brand-600 to-brand-700 text-white hover:from-brand-500 hover:to-brand-600 shadow-premium hover:shadow-glow-md active:shadow-soft-sm border border-brand-700/30 [text-shadow:0_1px_0_rgba(0,0,0,0.12)]",
   premium:
-    "bg-gradient-to-r from-brand-600 via-brand-500 to-accent-500 text-white hover:from-brand-700 hover:via-brand-600 hover:to-accent-600 shadow-glow-md hover:shadow-glow-lg active:shadow-none border border-white/10",
+    "bg-gradient-to-r from-brand-600 via-brand-500 to-accent-500 text-white hover:from-brand-700 hover:via-brand-600 hover:to-accent-600 shadow-glow-md hover:shadow-glow-lg active:shadow-none border border-white/15",
   secondary:
-    "bg-gray-900 text-white hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200 shadow-soft-sm",
+    "bg-gray-900 text-white hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 shadow-soft-md",
   outline:
-    "border border-gray-300 dark:border-white/[0.12] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/[0.04] hover:border-gray-400 dark:hover:border-white/[0.18]",
+    "border border-gray-200 dark:border-white/[0.12] text-gray-700 dark:text-gray-200 bg-white/60 dark:bg-transparent backdrop-blur-sm hover:bg-white hover:border-gray-300 dark:hover:bg-white/[0.04] dark:hover:border-white/[0.18] shadow-soft-sm",
   ghost:
-    "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.04] hover:text-gray-900 dark:hover:text-white",
+    "text-gray-600 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-white/[0.04] hover:text-gray-900 dark:hover:text-white",
   "ghost-brand":
-    "text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-500/[0.08] hover:text-brand-700 dark:hover:text-brand-300",
+    "text-brand-700 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-500/[0.08] hover:text-brand-800 dark:hover:text-brand-300",
   danger:
-    "bg-gradient-to-r from-red-600 to-red-500 text-white hover:from-red-700 hover:to-red-600 shadow-soft-sm border border-red-400/20",
+    "bg-gradient-to-b from-red-500 to-red-600 text-white hover:from-red-400 hover:to-red-500 shadow-premium border border-red-700/25",
   success:
-    "bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-700 hover:to-emerald-600 shadow-soft-sm border border-emerald-400/20",
+    "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 shadow-premium border border-emerald-700/25",
 };
 
 const sizes: Record<NonNullable<ButtonProps["size"]>, string> = {

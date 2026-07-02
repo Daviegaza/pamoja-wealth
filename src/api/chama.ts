@@ -39,9 +39,34 @@ export async function discover(params?: { search?: string; category?: Category; 
   return { items: r.data.data, meta: r.data.meta };
 }
 
+export interface ChamaDetailMember {
+  id: string;
+  userId: string;
+  chamaId: string;
+  fullName: string;
+  avatarUrl: string | null;
+  role: string;
+  totalContributions: number;
+  shares: number;
+  status: string;
+  contributionStreak: number;
+  joinedAt: string;
+}
+
+export interface ChamaDetail {
+  chama: ChamaDTO & { nextMeetingDate?: string | null; updatedAt?: string };
+  members: ChamaDetailMember[];
+  stats: Record<string, unknown>;
+}
+
 export async function getChama(id: string) {
-  const r = await api.get<Envelope<{ chama: ChamaDTO; members: unknown[]; stats: unknown }>>(`/chamas/${id}`);
+  const r = await api.get<Envelope<ChamaDetail>>(`/chamas/${id}`);
   return r.data.data;
+}
+
+export async function getMembers(id: string, params?: { search?: string; role?: string; page?: number; pageSize?: number }) {
+  const r = await api.get<Envelope<ChamaDetailMember[]>>(`/chamas/${id}/members`, { params });
+  return { items: r.data.data, meta: r.data.meta };
 }
 
 export async function createChama(data: {
