@@ -328,7 +328,19 @@ export default function ChamaDetailPage() {
       value: "members",
       label: "Members",
       content: (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-4">
+          {(myRole === "owner" || myRole === "admin") && (
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-brand-200/60 dark:border-brand-500/20 bg-brand-50/50 dark:bg-brand-500/[0.04] p-3">
+              <div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">Grow this chama</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Send an invite by phone, email, or share a link.</p>
+              </div>
+              <Button variant="premium" size="sm" onClick={() => { setInviteResult(null); setInviteOpen(true); }}>
+                + Add Member
+              </Button>
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {members.length > 0 ? members.slice(0, 10).map((m) => (
             <div key={m.id} className="space-y-2">
               <MemberCard member={m} trustScore={computeTrustScore(m, loans, verifiedUserIds.has(m.userId))} />
@@ -378,6 +390,7 @@ export default function ChamaDetailPage() {
           )) : (
             <p className="text-sm text-gray-400 col-span-2 py-8 text-center">No members yet.</p>
           )}
+          </div>
         </div>
       ),
     },
