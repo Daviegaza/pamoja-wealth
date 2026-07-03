@@ -23,16 +23,12 @@ export function lazyWithRetry<T extends ComponentType<Record<string, unknown>>>(
     } catch (err) {
       if (!isChunkLoadError(err)) throw err;
 
-      await new Promise((r) => setTimeout(r, 250));
+      await new Promise((r) => setTimeout(r, 500));
       try {
         return await factory();
       } catch (err2) {
-        if (!isChunkLoadError(err2)) throw err2;
-        if (typeof window !== "undefined" && !sessionStorage.getItem(RELOAD_KEY)) {
-          sessionStorage.setItem(RELOAD_KEY, "1");
-          window.location.reload();
-          return new Promise<{ default: T }>(() => {});
-        }
+        // Don't hard-reload — show a message to the user instead
+        console.error("Chunk failed to load after retry:", err2);
         throw err2;
       }
     }

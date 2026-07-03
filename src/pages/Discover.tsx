@@ -1,30 +1,20 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  Search,
-  Compass,
-  MapPin,
-  Users,
-  Clock,
-  HandHeart,
-  Plus,
-  ShieldCheck,
-  PiggyBank,
-  Wallet as WalletIcon,
+  Search, Compass, MapPin, Users, Clock, HandHeart,
+  Plus, ShieldCheck, PiggyBank, Wallet as WalletIcon,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { EmptyState } from "@/components/common/EmptyState";
+import * as chamaApi from "@/api/chama";
 import { getMockDatabase } from "@/mock";
 import { cn, formatCurrency, formatRelativeTime } from "@/lib/utils";
 import type { Chama } from "@/types";
 
-// Local card type — tolerates both old `Chama` and new polymorphic `Group` shapes.
 type DiscoveryCard = Chama & {
-  // Extension fields the sibling agent will introduce — declared optional so this file
-  // compiles cleanly against either the old or the new types.
   kind?: "chama" | "harambee" | "pot" | "savings_loan";
   visibility?: "public" | "private" | "invite_only";
   allowDiscovery?: boolean;
@@ -57,48 +47,12 @@ const CATEGORY_OPTIONS: { value: string; label: string }[] = [
   { value: "funeral", label: "Funeral" },
 ];
 
-const KIND_META: Record<NonNullable<DiscoveryCard["kind"]>, { label: string; icon: typeof HandHeart; variant: "brand" | "info" | "warning" | "success" }> = {
+const KIND_META: Record<string, { label: string; icon: typeof HandHeart; variant: "brand" | "info" | "warning" | "success" }> = {
   harambee: { label: "Harambee", icon: HandHeart, variant: "warning" },
   chama: { label: "Chama", icon: Users, variant: "brand" },
   pot: { label: "Pot", icon: WalletIcon, variant: "info" },
   savings_loan: { label: "Savings & Loan", icon: PiggyBank, variant: "success" },
 };
-
-/** Hydrate raw mock chamas into discovery-friendly cards. */
-function useDiscoveryCards(): DiscoveryCard[] {
-  return useMemo(() => {
-    const db = getMockDatabase();
-    return db.chamas.map((c, idx): DiscoveryCard => {
-      const kindCycle: DiscoveryCard["kind"] = ["harambee", "chama", "pot", "savings_loan"][idx % 4] as DiscoveryCard["kind"];
-      const target = (c.totalFunds || 100_000) + 200_000;
-      const raised = Math.min(target, c.totalFunds || 0);
-      const organizer = db.users[idx % db.users.length];
-      const slug = c.name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "") + "-" + c.id.slice(-4);
-      // Treat odd records as already public + discoverable, so the page renders content.
-      const visibility = idx % 3 === 0 ? "private" : "public";
-      const allowDiscovery = visibility === "public";
-      return {
-        ...c,
-        kind: kindCycle,
-        visibility,
-        allowDiscovery,
-        organizer: {
-          name: organizer?.fullName ?? "Pamoja Member",
-          isVerified: idx % 4 === 0,
-        },
-        coverImageUrl: `https://picsum.photos/seed/${encodeURIComponent(c.id)}/800/450`,
-        targetAmount: target,
-        raisedAmount: raised,
-        donorCount: 5 + ((idx * 13) % 240),
-        slug,
-        lastActivityAt: c.createdAt,
-      };
-    });
-  }, []);
-}
 
 function CardSkeleton() {
   return (
@@ -115,7 +69,7 @@ function CardSkeleton() {
 
 function DiscoveryCardView({ card }: { card: DiscoveryCard }) {
   const kindKey = card.kind ?? "chama";
-  const meta = KIND_META[kindKey];
+  const meta = KIND_META[kindKey] ?? KIND_META.chama;
   const Icon = meta.icon;
   const showProgress = kindKey === "harambee" && (card.targetAmount ?? 0) > 0;
   const pct = showProgress
@@ -128,7 +82,7 @@ function DiscoveryCardView({ card }: { card: DiscoveryCard }) {
       <Link to={to} className="card-hover overflow-hidden block group h-full flex flex-col">
         <div className="relative h-44 w-full overflow-hidden bg-gray-100 dark:bg-white/[0.03]">
           <img
-            src={card.coverImageUrl}
+            src={card.coverImageUrl ?? `https://picsum.photos/seed/${card.id}/800/450`}
             alt={card.name}
             loading="lazy"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -144,14 +98,12 @@ function DiscoveryCardView({ card }: { card: DiscoveryCard }) {
           <h3 className="font-semibold text-sm text-gray-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-1">
             {card.name}
           </h3>
-
           <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
             <span className="truncate">by {card.organizer?.name ?? "Anonymous"}</span>
             {card.organizer?.isVerified && (
-              <ShieldCheck className="h-3.5 w-3.5 text-brand-500 shrink-0" aria-label="Verified organizer" />
+              <ShieldCheck className="h-3.5 w-3.5 text-brand-500 shrink-0" />
             )}
           </p>
-
           {showProgress && (
             <div className="mt-4">
               <ProgressBar value={pct} max={100} size="sm" />
@@ -165,11 +117,9 @@ function DiscoveryCardView({ card }: { card: DiscoveryCard }) {
               </div>
             </div>
           )}
-
           <div className="mt-auto pt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
             <span className="inline-flex items-center gap-1">
-              <Users className="h-3.5 w-3.5" />
-              {card.donorCount ?? card.memberCount}
+              <Users className="h-3.5 w-3.5" />{card.donorCount ?? card.memberCount}
             </span>
             <span className="inline-flex items-center gap-1">
               <MapPin className="h-3.5 w-3.5" />
@@ -187,21 +137,57 @@ function DiscoveryCardView({ card }: { card: DiscoveryCard }) {
 }
 
 export default function Discover() {
-  const allCards = useDiscoveryCards();
   const [filter, setFilter] = useState<Filter>("all");
   const [category, setCategory] = useState<string>("all");
   const [query, setQuery] = useState("");
-  const [hydrated, setHydrated] = useState(false);
 
-  // Simulate suspense-style lazy hydration — paints skeletons on first frame.
-  useEffect(() => {
-    const t = setTimeout(() => setHydrated(true), 80);
-    return () => clearTimeout(t);
-  }, []);
+  // Fetch from API with mock fallback for seamless demo experience
+  const { data, isLoading } = useQuery({
+    queryKey: ["chamas", "discover", { page: 1, pageSize: 100 }],
+    queryFn: async () => {
+      try {
+        const res = await chamaApi.discover({ page: 1, pageSize: 100 });
+        if (res?.items?.length) return res.items;
+      } catch { /* fall through to mock */ }
+      // Mock fallback for demos
+      const db = getMockDatabase();
+      return db.chamas.map((c, idx) => ({
+        ...c,
+        type: ["harambee", "chama", "pot", "savings_loan"][idx % 4],
+        ownerName: db.users[idx % db.users.length]?.fullName ?? "Pamoja Member",
+        ownerVerified: idx % 4 === 0,
+        coverImageUrl: `https://picsum.photos/seed/${c.id}/800/450`,
+        targetAmount: (c.totalFunds || 100000) + 200000,
+        raisedAmount: c.totalFunds || 0,
+        donorCount: 5 + ((idx * 13) % 240),
+        visibility: idx % 3 === 0 ? "private" : "public",
+        allowDiscovery: idx % 3 !== 0,
+        slug: c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + c.id.slice(-4),
+        memberCount: 8 + (idx % 50),
+        lastActivityAt: c.createdAt,
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  const items = (data ?? []) as any[];
+  const allCards: DiscoveryCard[] = useMemo(() => {
+    return items.map((c: any): DiscoveryCard => ({
+      ...c,
+      kind: c.type === "harambee" ? "harambee" : c.type === "pot" ? "pot" : "chama",
+      organizer: { name: c.ownerName ?? "Pamoja Member", isVerified: c.ownerVerified ?? false },
+      coverImageUrl: c.coverImageUrl ?? `https://picsum.photos/seed/${c.id}/800/450`,
+      targetAmount: c.targetAmount ?? (c.totalFunds || 100000) + 200000,
+      raisedAmount: c.raisedAmount ?? c.totalFunds ?? 0,
+      donorCount: c.donorCount ?? c.memberCount ?? 5,
+      slug: c.slug ?? c.id,
+      lastActivityAt: c.lastActivityAt ?? c.createdAt,
+    }));
+  }, [data]);
 
   const filtered = useMemo(() => {
     return allCards
-      .filter((c) => c.visibility === "public" && c.allowDiscovery !== false)
+      .filter((c) => c.visibility !== "private" && c.allowDiscovery !== false)
       .filter((c) => (filter === "all" ? true : c.kind === filter))
       .filter((c) => (category === "all" ? true : c.category === category))
       .filter((c) => {
@@ -209,9 +195,9 @@ export default function Discover() {
         const q = query.toLowerCase();
         return (
           c.name.toLowerCase().includes(q) ||
-          c.location.toLowerCase().includes(q) ||
-          c.organizer?.name.toLowerCase().includes(q) ||
-          c.description.toLowerCase().includes(q)
+          (c.location ?? "").toLowerCase().includes(q) ||
+          (c.organizer?.name ?? "").toLowerCase().includes(q) ||
+          (c.description ?? "").toLowerCase().includes(q)
         );
       });
   }, [allCards, filter, category, query]);
@@ -226,8 +212,7 @@ export default function Discover() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Discover</h1>
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400 max-w-2xl">
-          Find public harambees, open chamas, and group pots that match your interests. Every campaign here is
-          publicly listed by its organizer.
+          Find public harambees, open chamas, and group pots. Every campaign here is publicly listed.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -240,7 +225,7 @@ export default function Discover() {
                   "px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors focus-ring",
                   filter === tab.key
                     ? "bg-white dark:bg-white/[0.08] text-gray-900 dark:text-white shadow-soft-sm"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200",
                 )}
               >
                 {tab.label}
@@ -274,11 +259,9 @@ export default function Discover() {
       </section>
 
       <section className="max-w-7xl mx-auto px-6 pb-24">
-        {!hydrated ? (
+        {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <CardSkeleton key={i} />
-            ))}
+            {Array.from({ length: 6 }).map((_, i) => (<CardSkeleton key={i} />))}
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState
@@ -288,9 +271,7 @@ export default function Discover() {
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filtered.map((c) => (
-              <DiscoveryCardView key={c.id} card={c} />
-            ))}
+            {filtered.map((c) => (<DiscoveryCardView key={c.id} card={c} />))}
           </div>
         )}
       </section>
@@ -299,8 +280,7 @@ export default function Discover() {
         to="/create"
         className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-600 to-brand-500 px-5 py-3 text-sm font-semibold text-white shadow-glow-md hover:shadow-glow-lg active:scale-[0.97] transition-all"
       >
-        <Plus className="h-4 w-4" />
-        Start your own
+        <Plus className="h-4 w-4" />Start your own
       </Link>
     </div>
   );

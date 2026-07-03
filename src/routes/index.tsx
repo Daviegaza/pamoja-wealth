@@ -111,6 +111,7 @@ const router = createBrowserRouter([
       { path: "/profile", element: withSuspense(ProfilePage) },
       { path: "/settings", element: withSuspense(SettingsPage) },
       { path: "/billing", element: withSuspense(BillingPage) },
+      { path: "/billing/upgrade", element: withSuspense(BillingPage) },
       { path: "/support", element: withSuspense(SupportPage) },
       { path: "/network", element: withSuspense(NetworkPage) },
       { path: "/create", element: withSuspense(CreateGroupPage) },

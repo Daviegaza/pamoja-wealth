@@ -1,12 +1,15 @@
 import { useRef, useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
+import { api } from "@/api/axios";
 
 const RESEND_SECONDS = 30;
 
 export default function OTPVerificationPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const email = (location.state as any)?.email || "";
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [code, setCode] = useState<string[]>(Array(6).fill(""));
   const [countdown, setCountdown] = useState(0);
@@ -71,16 +74,27 @@ export default function OTPVerificationPage() {
       return;
     }
     setIsVerifying(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setIsVerifying(false);
-    toast.success("Code verified successfully.");
-    navigate("/login");
+    try {
+      await api.post("/auth/verify-otp", { email, code: code.join("") });
+      toast.success("Code verified successfully.");
+      navigate("/login");
+    } catch (err: any) {
+      const message = err?.response?.data?.error || "Invalid code. Please try again.";
+      toast.error(message);
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     if (countdown > 0) return;
     setCountdown(RESEND_SECONDS);
-    toast.success("A new code has been sent to your phone and email.");
+    try {
+      await api.post("/auth/resend-otp", { email });
+      toast.success("A new code has been sent to your phone and email.");
+    } catch {
+      toast.error("Failed to resend code. Please try again.");
+    }
   };
 
   return (

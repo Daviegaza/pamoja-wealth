@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { forgotPasswordSchema, type ForgotPasswordFormValues } from "@/schemas/auth.schema";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { api } from "@/api/axios";
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -14,9 +15,14 @@ export default function ForgotPasswordPage() {
   });
 
   const onSubmit = async (values: ForgotPasswordFormValues) => {
-    await new Promise((r) => setTimeout(r, 600));
-    toast.success(`Reset instructions sent to ${values.email}`);
-    navigate("/otp-verification");
+    try {
+      await api.post("/auth/forgot-password", { email: values.email });
+      toast.success(`Reset instructions sent to ${values.email}`);
+      navigate("/otp-verification", { state: { email: values.email } });
+    } catch (err: any) {
+      const message = err?.response?.data?.error || "Failed to send reset instructions. Please try again.";
+      toast.error(message);
+    }
   };
 
   return (

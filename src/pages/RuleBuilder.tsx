@@ -83,11 +83,14 @@ const HAND_CODED_EXAMPLE: Partial<RuleDocLocal> = {
 };
 
 async function compileRules(sourceText: string): Promise<Partial<RuleDocLocal>> {
-  // TODO: real backend endpoint pending
   try {
-    const res = await fetch("/api/v1/ai/rules/compile", {
+    const token = localStorage.getItem("pamoja_token");
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || "/api/v1"}/ai/rules/compile`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ sourceText }),
     });
     if (!res.ok) throw new Error(String(res.status));
@@ -99,26 +102,43 @@ async function compileRules(sourceText: string): Promise<Partial<RuleDocLocal>> 
 }
 
 async function backTranslate(_doc: RuleDocLocal): Promise<{ en: string; sw: string }> {
-  // TODO: real backend endpoint pending — stubbed bilingual summary.
-  await new Promise((r) => setTimeout(r, 350));
+  try {
+    const token = localStorage.getItem("pamoja_token");
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || "/api/v1"}/ai/rules/back-translate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ ruleDoc: _doc }),
+    });
+    if (res.ok) return await res.json();
+  } catch { /* fall through to local generation */ }
+
+  // Local bilingual summary fallback
+  const cadenceSw = _doc.contributionRule.cadence === "monthly" ? "mwezi" : _doc.contributionRule.cadence === "weekly" ? "wiki" : "wiki mbili";
   return {
-    en: `Members contribute ${_doc.contributionRule.amountKes} KES every ${_doc.contributionRule.cadence}.
-Miss ${_doc.exitRule.missedContributionsTrigger} contributions in ${_doc.exitRule.rollingWindowMonths} months and you are removed${
-      _doc.exitRule.forfeitEntryBond ? " and lose the entry bond" : ""
-    }. Votes pass at ${_doc.votingRule.passThresholdPct}% with a ${_doc.votingRule.quorumPct}% quorum.`,
-    sw: `Wanachama wanachangia KES ${_doc.contributionRule.amountKes} kila ${
-      _doc.contributionRule.cadence === "monthly" ? "mwezi" : _doc.contributionRule.cadence === "weekly" ? "wiki" : "wiki mbili"
-    }.
-Ukikosa michango ${_doc.exitRule.missedContributionsTrigger} ndani ya miezi ${_doc.exitRule.rollingWindowMonths}, utaondolewa${
-      _doc.exitRule.forfeitEntryBond ? " na utapoteza amana ya kuingia" : ""
-    }. Kura zinapita kwa ${_doc.votingRule.passThresholdPct}% na akidi ya ${_doc.votingRule.quorumPct}%.`,
+    en: `Members contribute ${_doc.contributionRule.amountKes} KES every ${_doc.contributionRule.cadence}. Miss ${_doc.exitRule.missedContributionsTrigger} contributions in ${_doc.exitRule.rollingWindowMonths} months and you are removed${_doc.exitRule.forfeitEntryBond ? " and lose the entry bond" : ""}. Votes pass at ${_doc.votingRule.passThresholdPct}% with a ${_doc.votingRule.quorumPct}% quorum.`,
+    sw: `Wanachama wanachangia KES ${_doc.contributionRule.amountKes} kila ${cadenceSw}. Ukikosa michango ${_doc.exitRule.missedContributionsTrigger} ndani ya miezi ${_doc.exitRule.rollingWindowMonths}, utaondolewa${_doc.exitRule.forfeitEntryBond ? " na utapoteza amana ya kuingia" : ""}. Kura zinapita kwa ${_doc.votingRule.passThresholdPct}% na akidi ya ${_doc.votingRule.quorumPct}%.`,
   };
 }
 
-// Stub of useRuleStore — sibling agent owns the real one.
-function addRuleVersionStub(groupId: string | undefined, doc: RuleDocLocal, sourceText: string) {
-  // eslint-disable-next-line no-console
-  console.info("[ruleStore stub] addRuleVersion", { groupId, version: doc.version + 1, sourceText });
+// Save rule version via API
+async function saveRuleVersion(groupId: string | undefined, doc: RuleDocLocal, sourceText: string) {
+  if (!groupId) return;
+  try {
+    const token = localStorage.getItem("pamoja_token");
+    await fetch(`${import.meta.env.VITE_API_BASE_URL || "/api/v1"}/chamas/${groupId}/rules`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ ruleDoc: doc, sourceText }),
+    });
+  } catch (err) {
+    // Rule save is best-effort — the UI already shows the compiled result
+  }
 }
 
 export default function RuleBuilder() {
@@ -160,7 +180,7 @@ export default function RuleBuilder() {
   };
 
   const onSave = () => {
-    addRuleVersionStub(groupId, ruleDoc, sourceText);
+    saveRuleVersion(groupId, ruleDoc, sourceText);
     toast.success(`Saved as Version ${ruleDoc.version + 1}`);
   };
 

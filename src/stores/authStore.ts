@@ -17,6 +17,7 @@ interface RegisterPayload {
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+  _hasHydrated: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterPayload) => Promise<void>;
   logout: () => void;
@@ -46,10 +47,13 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       isAuthenticated: false,
+      _hasHydrated: false,
+
       login: async (email, password) => {
         if (USE_MOCKS) {
           await new Promise((r) => setTimeout(r, 400));
-          set({ user: getCurrentUser(), isAuthenticated: true });
+          const mockUser = getCurrentUser();
+          set({ user: mockUser, isAuthenticated: true });
           return;
         }
         const res = await authApi.login(email, password);
@@ -57,6 +61,7 @@ export const useAuthStore = create<AuthState>()(
         localStorage.setItem("pamoja_refresh", res.refreshToken);
         set({ user: mapAuthUserToUser(res.user), isAuthenticated: true });
       },
+
       register: async ({ fullName, email, phone, username, password }) => {
         if (USE_MOCKS) {
           await new Promise((r) => setTimeout(r, 400));
@@ -69,14 +74,34 @@ export const useAuthStore = create<AuthState>()(
         localStorage.setItem("pamoja_refresh", res.refreshToken);
         set({ user: mapAuthUserToUser(res.user), isAuthenticated: true });
       },
+
       logout: () => {
         localStorage.removeItem("pamoja_token");
         localStorage.removeItem("pamoja_refresh");
         if (!USE_MOCKS) authApi.logout().catch(() => undefined);
         set({ user: null, isAuthenticated: false });
       },
+
       setUser: (user) => set({ user }),
     }),
-    { name: "pamoja-auth" }
+    {
+      name: "pamoja-auth",
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state._hasHydrated = true;
+        }
+      },
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+      }),
+    }
   )
 );
+
+// HMR: preserve auth state across Vite hot reloads
+if (import.meta.hot) {
+  import.meta.hot.accept((newModule) => {
+    // Zustand persist handles rehydration from localStorage automatically
+  });
+}

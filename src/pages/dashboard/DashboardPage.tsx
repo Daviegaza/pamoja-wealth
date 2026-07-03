@@ -34,7 +34,10 @@ import { MemberHealthCard } from "@/components/common/MemberHealthCard";
 import { AchievementBadge, getAchievements } from "@/components/common/AchievementBadge";
 import { GoalTracker } from "@/components/common/GoalTracker";
 import { useGoalStore } from "@/stores/goalStore";
-import type { Role, Member, Loan } from "@/types";
+import { StreakCard } from "@/components/engagement/StreakCard";
+import { ActivityFeed } from "@/components/engagement/ActivityFeed";
+import { Leaderboard } from "@/components/engagement/Leaderboard";
+import type { Role, Member, Loan, ActivityItem as MockActivityItem } from "@/types";
 
 const db = getMockDatabase();
 
@@ -322,6 +325,18 @@ export default function DashboardPage() {
           <Link to="/meetings">
             <Button size="sm" variant="ghost-brand" leftIcon={<Calendar className="h-3.5 w-3.5" />}>Meetings</Button>
           </Link>
+        </div>
+
+        {/* 🔥 Engagement: Streak Card */}
+        <div className="mt-4">
+          <StreakCard
+            currentStreak={Math.max(1, ...myMemberships.map(m => m.contributionStreak || 0)) || 1}
+            longestStreak={Math.max(...myMemberships.map(m => m.contributionStreak || 0), 7)}
+            totalContributions={myMemberships.reduce((s, m) => s + (m.totalContributions || 0), 0)}
+            contributionGoal={10}
+            nextMilestone={7}
+            onContribute={() => setContributeOpen(true)}
+          />
         </div>
       </motion.div>
 

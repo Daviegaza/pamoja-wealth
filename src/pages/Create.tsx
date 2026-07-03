@@ -165,10 +165,24 @@ export default function CreatePage() {
   };
 
   const onSubmit = async (values: FormValues) => {
-    await new Promise((r) => setTimeout(r, 500));
-    toast.success(`"${values.name}" created`);
-    // TODO: replace with useGroupStore.createGroup({...}) once sibling lands.
-    navigate("/discover");
+    try {
+      // Use chama API to create the group
+      await import("@/api/chama").then((api) =>
+        api.createChama({
+          name: values.name,
+          description: values.description || "",
+          category: (values as any).category || "savings",
+          privacy: (values as any).privacy || "private",
+          type: (values as any).kind === "harambee" ? "fundraiser" : "chama",
+          monthlyContribution: values.monthlyContribution || 0,
+        })
+      );
+      toast.success(`"${values.name}" created successfully!`);
+      navigate("/discover");
+    } catch (err: any) {
+      const message = err?.response?.data?.error || err?.message || "Failed to create group.";
+      toast.error(message);
+    }
   };
 
   const onPickCover = (e: React.ChangeEvent<HTMLInputElement>) => {

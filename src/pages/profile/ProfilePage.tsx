@@ -3,6 +3,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/cards/StatCard";
 import { ProfileForm } from "@/components/forms/ProfileForm";
+import { ReferralDashboard } from "@/components/referral/ReferralDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useChamaStore } from "@/stores/chamaStore";
 import { useWalletStore } from "@/stores/walletStore";
@@ -49,6 +50,9 @@ export default function ProfilePage() {
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Edit Profile</h2>
         <ProfileForm />
       </div>
+
+      {/* Referral Program */}
+      <ReferralDashboard />
     </div>
   );
 }

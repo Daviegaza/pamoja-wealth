@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { UserPlus, Users, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { MemberCard } from "@/components/cards/MemberCard";
@@ -13,6 +14,7 @@ import { useSearch } from "@/hooks/useSearch";
 import { usePagination } from "@/hooks/usePagination";
 
 export default function MembersPage() {
+  const navigate = useNavigate();
   const members = useChamaStore((s) => s.members);
   const activeChamaId = useChamaStore((s) => s.activeChamaId);
   const chamas = useChamaStore((s) => s.chamas);
@@ -43,7 +45,7 @@ export default function MembersPage() {
           title="No chamas yet"
           description="Join or create a chama to see members."
           actionLabel="View Chamas"
-          onAction={() => window.location.href = "/chamas"}
+          onAction={() => navigate("/chamas")}
         />
       </div>
     );

@@ -6,11 +6,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { label: "Features", href: "#features" },
+  { label: "Features", href: "/#features" },
   { label: "Discover", href: "/discover", route: true as const },
   { label: "Pricing", href: "/pricing", route: true as const },
-  { label: "Testimonials", href: "#testimonials" },
-  { label: "FAQ", href: "#faq" },
+  { label: "Testimonials", href: "/#testimonials" },
+  { label: "FAQ", href: "/#faq" },
 ];
 
 export function LandingNavbar() {

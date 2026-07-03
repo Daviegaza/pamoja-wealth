@@ -54,11 +54,17 @@ export default function JoinChamaPage() {
   const onSubmit = async (values: JoinChamaFormValues) => {
     setRequestedCode(values.inviteCode);
     setRequestStatus("pending");
-    toast.info("Submitting invite code...");
-    setTimeout(() => {
+    try {
+      // Try joining with the invite code via the API
+      await chamaApi.joinChama(values.inviteCode, { inviteCode: values.inviteCode });
       setRequestStatus("done");
-      toast.success("If your code is valid you've been added.");
-    }, 800);
+      toast.success("Successfully joined the chama!");
+      qc.invalidateQueries({ queryKey: ["chamas", "mine"] });
+    } catch (err: any) {
+      setRequestStatus("idle");
+      const message = err?.response?.data?.error || "Invalid invite code. Please check and try again.";
+      toast.error(message);
+    }
   };
 
   async function handleAcceptInvitation(token: string) {
