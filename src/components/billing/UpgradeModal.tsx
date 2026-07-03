@@ -10,7 +10,10 @@
  *   - mpesa_ratiba: M-Pesa Ratiba standing-order (recurring) — Pro+ feature.
  *   - card        : Flutterwave hosted checkout — redirect via `checkoutUrl`.
  *
- * TODO: real Flutterwave webhook + STK upgrade flow once backend lands.
+ * Backend path: POST /billing/subscription/:chamaId/checkout → returns either
+ * `checkoutUrl` (Flutterwave hosted) or `stkInitiated: true` (M-Pesa). The
+ * subscription-completed WebSocket event closes the loop for STK; card flow
+ * relies on the Flutterwave webhook (guarded via `verif-hash`).
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

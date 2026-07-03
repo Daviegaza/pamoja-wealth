@@ -1,0 +1,73 @@
+{
+  "app": {
+    "name": "Pamoja Wealth",
+    "tagline": "Chama. Harambee. Utajiri — pamoja."
+  },
+  "nav": {
+    "dashboard": "Dashibodi",
+    "chamas": "Chama zangu",
+    "wallet": "Pochi",
+    "loans": "Mikopo",
+    "investments": "Uwekezaji",
+    "meetings": "Mikutano",
+    "voting": "Kupiga kura",
+    "documents": "Hati",
+    "analytics": "Uchambuzi",
+    "messages": "Ujumbe",
+    "notifications": "Arifa",
+    "integrations": "Muunganisho",
+    "settings": "Mipangilio",
+    "billing": "Malipo",
+    "support": "Msaada",
+    "logout": "Toka"
+  },
+  "auth": {
+    "login": "Ingia",
+    "register": "Fungua akaunti",
+    "forgotPassword": "Umesahau nywila?",
+    "email": "Barua pepe",
+    "phone": "Simu",
+    "password": "Nywila",
+    "fullName": "Jina kamili",
+    "otp": "Msimbo wa muda mmoja",
+    "resendOtp": "Tuma msimbo tena"
+  },
+  "dashboard": {
+    "welcome": "Karibu tena, {{name}}",
+    "totalContributed": "Jumla ya michango",
+    "myChamas": "Chama zangu",
+    "nextContribution": "Mchango unaofuata",
+    "upcomingMeetings": "Mikutano ijayo"
+  },
+  "chama": {
+    "create": "Anzisha chama",
+    "join": "Jiunge na chama",
+    "contribute": "Changia",
+    "members": "Wanachama",
+    "treasury": "Hazina",
+    "rules": "Sheria ndogo",
+    "chat": "Mazungumzo"
+  },
+  "money": {
+    "kes": "KES {{amount, number}}",
+    "deposit": "Weka",
+    "withdraw": "Toa",
+    "transfer": "Hamisha",
+    "pending": "Inasubiri",
+    "completed": "Imekamilika",
+    "failed": "Imeshindwa"
+  },
+  "common": {
+    "save": "Hifadhi",
+    "cancel": "Ghairi",
+    "delete": "Futa",
+    "confirm": "Thibitisha",
+    "loading": "Inapakia…",
+    "search": "Tafuta",
+    "back": "Rudi",
+    "next": "Endelea",
+    "yes": "Ndio",
+    "no": "Hapana",
+    "close": "Funga"
+  }
+}

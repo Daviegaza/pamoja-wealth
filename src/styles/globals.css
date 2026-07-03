@@ -1,5 +1,61 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600&display=swap");
 
+/* Design tokens — RGB triples so consumers can compose alphas via rgb(var(--x) / <alpha>). */
+:root {
+  --bg: 255 255 255;
+  --bg-elevated: 249 250 251;
+  --surface: 255 255 255;
+  --text: 17 24 39;
+  --text-muted: 107 114 128;
+  --border: 229 231 235;
+  --ring: 5 150 105;
+}
+.dark, [data-theme="dark"] {
+  --bg: 10 10 15;
+  --bg-elevated: 17 24 39;
+  --surface: 23 32 43;
+  --text: 243 244 246;
+  --text-muted: 156 163 175;
+  --border: 45 55 72;
+  --ring: 52 211 153;
+}
+[data-theme="high-contrast"] {
+  --bg: 0 0 0;
+  --bg-elevated: 0 0 0;
+  --surface: 0 0 0;
+  --text: 255 255 255;
+  --text-muted: 230 230 230;
+  --border: 255 255 255;
+  --ring: 255 255 0;
+}
+
+/* a11y baseline — always-visible focus ring, skip link, reduced motion. */
+:where(a, button, [role="button"], input, select, textarea):focus-visible {
+  outline: 2px solid rgb(var(--ring));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.skip-to-content {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 12px 16px;
+  background: rgb(var(--bg-elevated));
+  color: rgb(var(--text));
+  border: 2px solid rgb(var(--ring));
+  border-radius: 8px;
+}
+.skip-to-content:focus { left: 12px; top: 12px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

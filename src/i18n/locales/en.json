@@ -1,0 +1,73 @@
+{
+  "app": {
+    "name": "Pamoja Wealth",
+    "tagline": "Chamas. Fundraisers. Wealth — together."
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "chamas": "My Chamas",
+    "wallet": "Wallet",
+    "loans": "Loans",
+    "investments": "Investments",
+    "meetings": "Meetings",
+    "voting": "Voting",
+    "documents": "Documents",
+    "analytics": "Analytics",
+    "messages": "Messages",
+    "notifications": "Notifications",
+    "integrations": "Integrations",
+    "settings": "Settings",
+    "billing": "Billing",
+    "support": "Support",
+    "logout": "Log out"
+  },
+  "auth": {
+    "login": "Log in",
+    "register": "Create account",
+    "forgotPassword": "Forgot password?",
+    "email": "Email",
+    "phone": "Phone",
+    "password": "Password",
+    "fullName": "Full name",
+    "otp": "One-time code",
+    "resendOtp": "Resend code"
+  },
+  "dashboard": {
+    "welcome": "Welcome back, {{name}}",
+    "totalContributed": "Total contributed",
+    "myChamas": "My chamas",
+    "nextContribution": "Next contribution",
+    "upcomingMeetings": "Upcoming meetings"
+  },
+  "chama": {
+    "create": "Create chama",
+    "join": "Join chama",
+    "contribute": "Contribute",
+    "members": "Members",
+    "treasury": "Treasury",
+    "rules": "Bylaws",
+    "chat": "Chat"
+  },
+  "money": {
+    "kes": "KES {{amount, number}}",
+    "deposit": "Deposit",
+    "withdraw": "Withdraw",
+    "transfer": "Transfer",
+    "pending": "Pending",
+    "completed": "Completed",
+    "failed": "Failed"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "loading": "Loading…",
+    "search": "Search",
+    "back": "Back",
+    "next": "Next",
+    "yes": "Yes",
+    "no": "No",
+    "close": "Close"
+  }
+}

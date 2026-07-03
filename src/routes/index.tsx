@@ -47,6 +47,10 @@ const CampaignPage = lazy(() => import("@/pages/Campaign/[slug]"));
 const CreateGroupPage = lazy(() => import("@/pages/Create"));
 const RuleBuilderPage = lazy(() => import("@/pages/RuleBuilder"));
 const PricingPage = lazy(() => import("@/pages/Pricing"));
+const IntegrationsPage = lazy(() => import("@/pages/Integrations/IntegrationsPage"));
+const PublicDonatePage = lazy(() => import("@/pages/public/PublicDonatePage"));
+const ShareLinkPage = lazy(() => import("@/pages/chamas/ShareLinkPage"));
+const InvestorPage = lazy(() => import("@/pages/chamas/InvestorPage"));
 
 function withSuspense(Component: ComponentType) {
   return (
@@ -70,6 +74,8 @@ const router = createBrowserRouter([
       { path: "/discover", element: withSuspense(DiscoverPage) },
       { path: "/c/:slug", element: withSuspense(CampaignPage) },
       { path: "/pricing", element: withSuspense(PricingPage) },
+      { path: "/give/:token", element: withSuspense(PublicDonatePage) },
+      { path: "/invest/:token", element: withSuspense(PublicDonatePage) },
     ],
   },
   {
@@ -117,6 +123,9 @@ const router = createBrowserRouter([
       { path: "/create", element: withSuspense(CreateGroupPage) },
       { path: "/rules/builder", element: withSuspense(RuleBuilderPage) },
       { path: "/rules/builder/:groupId", element: withSuspense(RuleBuilderPage) },
+      { path: "/integrations", element: withSuspense(IntegrationsPage) },
+      { path: "/chamas/:id/share", element: withSuspense(ShareLinkPage) },
+      { path: "/chamas/:id/investors", element: withSuspense(InvestorPage) },
     ],
   },
   { path: "*", element: withSuspense(NotFoundPage) },

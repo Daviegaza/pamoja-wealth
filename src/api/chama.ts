@@ -185,3 +185,39 @@ export async function listDonations(chamaId: string, page = 1, pageSize = 20) {
   const r = await api.get<Envelope<unknown[]>>(`/chamas/${chamaId}/donations`, { params: { page, pageSize } });
   return { items: r.data.data, meta: r.data.meta };
 }
+
+// ── Rule Engine ──────────────────────────────────────────────────
+export interface ChamaRuleVersion {
+  id: string;
+  chamaId: string;
+  version: number;
+  ruleDoc: unknown;
+  sourceText: string | null;
+  compiledBy: "human" | "claude-sonnet-4-5" | string;
+  effectiveAt: string;
+  supersededAt: string | null;
+  createdById: string | null;
+  approvedByIds: string[];
+  hash: string;
+  createdAt: string;
+}
+
+export async function listRuleVersions(chamaId: string) {
+  const r = await api.get<Envelope<ChamaRuleVersion[]>>(`/chamas/${chamaId}/rules`);
+  return r.data.data;
+}
+
+export async function getActiveRules(chamaId: string) {
+  const r = await api.get<Envelope<ChamaRuleVersion | null>>(`/chamas/${chamaId}/rules/active`);
+  return r.data.data;
+}
+
+export async function getRuleVersion(chamaId: string, version: number) {
+  const r = await api.get<Envelope<ChamaRuleVersion>>(`/chamas/${chamaId}/rules/${version}`);
+  return r.data.data;
+}
+
+export async function saveRuleVersion(chamaId: string, ruleDoc: unknown, sourceText?: string) {
+  const r = await api.post<Envelope<ChamaRuleVersion>>(`/chamas/${chamaId}/rules`, { ruleDoc, sourceText });
+  return r.data.data;
+}

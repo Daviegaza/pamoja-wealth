@@ -1,11 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Sparkles, Save, Wand2, Languages } from "lucide-react";
+import { Sparkles, Save, Wand2, Languages, History } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Tabs } from "@/components/ui/Tabs";
 import { RulePreview } from "@/components/rule-builder/RulePreview";
 import { RuleBackTranslation } from "@/components/rule-builder/RuleBackTranslation";
+import {
+  getActiveRules as apiGetActiveRules,
+  saveRuleVersion as apiSaveRuleVersion,
+  listRuleVersions as apiListRuleVersions,
+  type ChamaRuleVersion,
+} from "@/api/chama";
 import {
   RuleSectionContribution,
   type ContributionRule,
@@ -123,22 +129,39 @@ async function backTranslate(_doc: RuleDocLocal): Promise<{ en: string; sw: stri
   };
 }
 
-// Save rule version via API
-async function saveRuleVersion(groupId: string | undefined, doc: RuleDocLocal, sourceText: string) {
-  if (!groupId) return;
-  try {
-    const token = localStorage.getItem("pamoja_token");
-    await fetch(`${import.meta.env.VITE_API_BASE_URL || "/api/v1"}/chamas/${groupId}/rules`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ ruleDoc: doc, sourceText }),
-    });
-  } catch (err) {
-    // Rule save is best-effort — the UI already shows the compiled result
-  }
+// Coerce the local UI shape to the canonical RuleDoc the backend expects.
+// The canonical shape uses `contribution`, `entryDeposit`, `voting`, etc.
+// (no *Rule suffix). Server persists it as JSONB — keep unknown fields intact.
+function toCanonicalRuleDoc(d: RuleDocLocal): unknown {
+  return {
+    version: d.version,
+    contribution: d.contributionRule,
+    entryDeposit: d.entryDepositRule,
+    eligibility: d.eligibilityRule,
+    vetting: d.vettingRule,
+    voting: d.votingRule,
+    payoutOrder: d.payoutOrderRule,
+    exit: d.exitRule,
+    dividend: d.dividendRule,
+  };
+}
+
+// Best-effort reverse mapping — tolerant to canonical, legacy, or partial shapes.
+function fromCanonicalRuleDoc(raw: unknown, fallback: RuleDocLocal): RuleDocLocal {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const pick = <T,>(canonical: string, legacy: string, fb: T): T =>
+    (r[canonical] as T) ?? (r[legacy] as T) ?? fb;
+  return {
+    version: (r.version as number) ?? fallback.version,
+    contributionRule: pick("contribution", "contributionRule", fallback.contributionRule),
+    entryDepositRule: pick("entryDeposit", "entryDepositRule", fallback.entryDepositRule),
+    eligibilityRule: pick("eligibility", "eligibilityRule", fallback.eligibilityRule),
+    vettingRule: pick("vetting", "vettingRule", fallback.vettingRule),
+    votingRule: pick("voting", "votingRule", fallback.votingRule),
+    payoutOrderRule: pick("payoutOrder", "payoutOrderRule", fallback.payoutOrderRule),
+    exitRule: pick("exit", "exitRule", fallback.exitRule),
+    dividendRule: pick("dividend", "dividendRule", fallback.dividendRule),
+  };
 }
 
 export default function RuleBuilder() {
@@ -153,6 +176,31 @@ export default function RuleBuilder() {
   const [compiling, setCompiling] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [translation, setTranslation] = useState<{ en: string; sw: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [versions, setVersions] = useState<ChamaRuleVersion[]>([]);
+
+  // Load active + history when editing an existing group.
+  useEffect(() => {
+    if (!groupId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [active, list] = await Promise.all([
+          apiGetActiveRules(groupId).catch(() => null),
+          apiListRuleVersions(groupId).catch(() => []),
+        ]);
+        if (cancelled) return;
+        if (active) {
+          setRuleDoc((prev) => fromCanonicalRuleDoc(active.ruleDoc, prev));
+          if (active.sourceText) setSourceText(active.sourceText);
+        }
+        setVersions(list);
+      } catch {
+        // Silent — draft mode is fine.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [groupId]);
 
   const onCompile = async () => {
     if (!sourceText.trim()) {
@@ -179,9 +227,25 @@ export default function RuleBuilder() {
     }
   };
 
-  const onSave = () => {
-    saveRuleVersion(groupId, ruleDoc, sourceText);
-    toast.success(`Saved as Version ${ruleDoc.version + 1}`);
+  const onSave = async () => {
+    if (!groupId) {
+      toast.error("Attach these rules to a group before saving. Open from a group's settings.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const saved = await apiSaveRuleVersion(groupId, toCanonicalRuleDoc(ruleDoc), sourceText);
+      setRuleDoc((prev) => ({ ...prev, version: saved.version }));
+      const list = await apiListRuleVersions(groupId).catch(() => versions);
+      setVersions(list);
+      toast.success(`Saved as Version ${saved.version}`);
+    } catch (err) {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message
+        ?? "Could not save rules. Ensure you're the treasurer or admin.";
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const tabItems = useMemo(
@@ -285,9 +349,23 @@ export default function RuleBuilder() {
             preview the structured rules, and back-translate to EN + SW for member sign-off.
           </p>
         </div>
-        <Button variant="premium" leftIcon={<Save className="h-4 w-4" />} onClick={onSave}>
-          Save as Version {ruleDoc.version + 1}
-        </Button>
+        <div className="flex items-center gap-2">
+          {versions.length > 0 && (
+            <div className="hidden md:flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400 pr-2 border-r border-gray-200 dark:border-white/[0.08]">
+              <History className="h-3.5 w-3.5" />
+              <span>{versions.length} version{versions.length === 1 ? "" : "s"} on record</span>
+            </div>
+          )}
+          <Button
+            variant="premium"
+            leftIcon={<Save className="h-4 w-4" />}
+            onClick={onSave}
+            isLoading={saving}
+            disabled={saving}
+          >
+            {groupId ? `Save as Version ${(versions[0]?.version ?? 0) + 1}` : "Save (open from a group)"}
+          </Button>
+        </div>
       </header>
 
       {/* Two-pane: NL source on the left, structured preview on the right */}
