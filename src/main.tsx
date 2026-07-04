@@ -5,8 +5,10 @@ import "@/styles/globals.css";
 import "@/i18n";
 import { registerPwa } from "@/lib/pwa";
 import { initSentry } from "@/lib/sentry";
+import { initCapacitor } from "@/lib/capacitor-init";
 
 registerPwa();
+initCapacitor();
 initSentry();
 
 createRoot(document.getElementById("root")!).render(

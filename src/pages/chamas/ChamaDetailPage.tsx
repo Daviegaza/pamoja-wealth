@@ -3,7 +3,8 @@ import { useParams, useSearchParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Users, Wallet, Calendar, TrendingUp, ArrowLeft, Settings,
-  CreditCard, Landmark, Copy, Check, Building2, HandCoins,
+  CreditCard, Landmark, Copy, Check, Building2, HandCoins, QrCode,
+  PiggyBank, BarChart3, ShieldAlert, LandmarkIcon, Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ContributeModal } from "@/components/payments/ContributeModal";
@@ -27,9 +28,13 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { getMockDatabase } from "@/mock";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { getChama, getMembers, updateChama, updateMemberRole, inviteToChama, removeMemberFromChama, listJoinRequests, decideJoinRequest, type ChamaDetail, type ChamaDetailMember, type ChamaRole } from "@/api/chama";
+import { QRCodeSVG } from "qrcode.react";
+import { getChama, getMembers, updateChama, updateMemberRole, inviteToChama, removeMemberFromChama, listJoinRequests, decideJoinRequest, listDonations, type ChamaDetail, type ChamaDetailMember, type ChamaRole } from "@/api/chama";
+import { USE_MOCKS } from "@/lib/env";
+import { useSocketEvent } from "@/lib/socket";
 
 const MANAGEMENT_ROLES: Role[] = ["owner", "admin", "chairperson"];
+const TREASURY_ROLES: Role[] = ["owner", "admin", "treasurer"];
 
 function toChama(d: ChamaDetail["chama"], memberCount: number): Chama {
   return {
@@ -46,6 +51,8 @@ function toChama(d: ChamaDetail["chama"], memberCount: number): Chama {
     growthRate: 0,
     status: (d.status as Chama["status"]) ?? "active",
     location: d.location ?? "",
+    // @ts-expect-error preserve type for fundraiser/pot detection
+    type: (d as any).type ?? "chama",
   };
 }
 
@@ -102,6 +109,40 @@ export default function ChamaDetailPage() {
   const myMembership = members.find((m) => m.userId === user?.id);
   const myRole: Role = myMembership?.role ?? "member";
   const canManage = MANAGEMENT_ROLES.includes(myRole);
+  const canTreasury = TREASURY_ROLES.includes(myRole);
+
+  // ── ALL hooks must be before any conditional returns (Rules of Hooks) ──
+  const [showQR, setShowQR] = useState(false);
+  const chamaShareUrl = `https://pamojawealth.app/chamas/${chamaId}`;
+
+  // Real-time donation updates via WebSocket
+  const [liveDonations, setLiveDonations] = useState<Array<{ id: string; donorName: string; amount: number; timestamp: string }>>([]);
+  useSocketEvent<{ transactionId: string; groupId?: string; amount: number; mpesaReceipt: string; completedAt: string; donorName?: string }>(
+    "payment:completed",
+    (p) => {
+      if (!p || p.groupId !== chamaId) return;
+      setLiveDonations((prev) => [{
+        id: p.transactionId,
+        donorName: p.donorName ?? "Anonymous Donor",
+        amount: p.amount,
+        timestamp: p.completedAt,
+      }, ...prev].slice(0, 20));
+      qc.invalidateQueries({ queryKey: ["chamas", "detail", chamaId] });
+      qc.invalidateQueries({ queryKey: ["chamas", "members", chamaId] });
+    }
+  );
+
+  // Fetch donations (always called — returns empty for non-fundraisers)
+  const donationsQuery = useQuery({
+    queryKey: ["chamas", "donations", chamaId],
+    queryFn: () => listDonations(chamaId, 1, 50),
+    enabled: !!chamaId,
+    refetchInterval: 10_000,
+  });
+
+  // Use type preserved in the mapped chama object (added in toChama above)
+  const isFundraiser = (chama as any)?.type === "fundraiser";
+  const isPot = (chama as any)?.type === "pot";
 
   const pendingLoans = loans.filter((l) => l.chamaId === chamaId && l.status === "pending");
 
@@ -130,7 +171,7 @@ export default function ChamaDetailPage() {
     },
   });
 
-  const dbUsers = getMockDatabase().users;
+  const dbUsers = USE_MOCKS ? getMockDatabase().users : [];
   const verifiedUserIds = new Set(dbUsers.filter((u) => u.isVerified).map((u) => u.id));
 
   const [manageOpen, setManageOpen] = useState(false);
@@ -426,6 +467,8 @@ export default function ChamaDetailPage() {
     }
   );
 
+  const pendingRequests: Array<{ id: string; userId: string; fullName?: string; message?: string; createdAt?: string }> = (joinRequestsQuery.data as unknown as Array<{ id: string; userId: string; fullName?: string; message?: string; createdAt?: string }>) ?? [];
+
   if (canManage) {
     tabs.push({
       value: "ledger",
@@ -437,7 +480,78 @@ export default function ChamaDetailPage() {
       label: "Cap Table",
       content: <CapTablePanel chamaId={chamaId} />,
     });
-    const pendingRequests: Array<{ id: string; userId: string; fullName?: string; message?: string; createdAt?: string }> = (joinRequestsQuery.data as unknown as Array<{ id: string; userId: string; fullName?: string; message?: string; createdAt?: string }>) ?? [];
+  }
+
+  // Treasury tab — visible to treasurers, admins, and owners
+  if (canTreasury) {
+    tabs.push({
+      value: "treasury",
+      label: "Treasury",
+      content: (
+        <div className="space-y-6 max-w-3xl">
+          {/* STK Push / Paybill Info */}
+          <div className="card-hover p-5 border-l-4 border-l-emerald-500">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-500/[0.15]">
+                <QrCode className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Contribution methods</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">How members can send money</p>
+              </div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="rounded-xl border border-gray-200 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.02] p-4">
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">M-Pesa STK Push</p>
+                <p className="text-xs text-gray-500 mb-2">Members get a pop-up on their phone to pay. No paybill number needed.</p>
+                <Button size="sm" variant="outline" className="w-full text-xs"
+                  onClick={() => setContributeOpen(true)}>
+                  Send test STK Push
+                </Button>
+              </div>
+              <div className="rounded-xl border border-gray-200 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.02] p-4">
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">Paybill / Till Number</p>
+                <p className="text-[11px] text-gray-500 mb-1">Current: <code className="font-mono font-bold text-brand-600 dark:text-brand-400">{(chama as unknown as { paybillAccountNumber?: string }).paybillAccountNumber ?? "Not set"}</code></p>
+                <Button size="sm" variant="outline" className="w-full text-xs" onClick={openManage}>
+                  Update payment number
+                </Button>
+              </div>
+            </div>
+            {showQR && (
+              <div className="mt-4 flex flex-col items-center gap-2 rounded-xl bg-white dark:bg-white p-4 shadow-sm border border-gray-100 dark:border-white/[0.06]">
+                <QRCodeSVG value={`https://pamojawealth.app/pay/${chamaId}`} size={140} level="M" includeMargin />
+                <p className="text-[11px] text-gray-500 text-center">Payment QR — scan to pay into {chama.name}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Link to="/transactions" className="card-hover p-4 hover:border-brand-300 dark:hover:border-brand-500/30 transition-all group">
+              <BarChart3 className="h-5 w-5 text-brand-500 mb-2" />
+              <p className="text-xs text-gray-400 uppercase tracking-wider">Transactions</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">View all</p>
+              <span className="text-xs text-brand-600 dark:text-brand-400 font-medium group-hover:underline mt-1 inline-block">Transaction history &rarr;</span>
+            </Link>
+            <Link to="/treasury" className="card-hover p-4 hover:border-brand-300 dark:hover:border-brand-500/30 transition-all group">
+              <PiggyBank className="h-5 w-5 text-amber-500 mb-2" />
+              <p className="text-xs text-gray-400 uppercase tracking-wider">Total Pool</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">{formatCurrency(chama.totalFunds)}</p>
+              <span className="text-xs text-brand-600 dark:text-brand-400 font-medium group-hover:underline mt-1 inline-block">View treasury &rarr;</span>
+            </Link>
+            <div className="card-hover p-4">
+              <ShieldAlert className="h-5 w-5 text-purple-500 mb-2" />
+              <p className="text-xs text-gray-400 uppercase tracking-wider">Audit Status</p>
+              <Badge variant="success" dot className="text-[11px] mt-1">Balanced</Badge>
+              <p className="text-[11px] text-gray-500 mt-1">All entries verified</p>
+            </div>
+          </div>
+        </div>
+      ),
+    });
+  }
+
+  if (canManage) {
     tabs.push({
       value: "management",
       label: pendingRequests.length > 0 ? `Management · ${pendingRequests.length} pending` : "Management",
@@ -529,10 +643,12 @@ export default function ChamaDetailPage() {
             </Button>
           </div>
 
-          <div className="card-hover p-5">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Share Invite</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Share this invite code with new members to join this chama.</p>
-            <div className="flex items-center gap-3 mb-3">
+          <div className="card-hover p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Share Invite</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Share this invite code and QR with new members.</p>
+
+            {/* Invite code */}
+            <div className="flex items-center gap-3">
               <code className="flex-1 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-gray-50 dark:bg-white/[0.03] px-4 py-2 text-sm font-mono font-bold text-brand-600 dark:text-brand-400 tracking-wider select-all">
                 {inviteCode}
               </code>
@@ -540,10 +656,28 @@ export default function ChamaDetailPage() {
                 {inviteCopied ? "Copied" : "Copy"}
               </Button>
             </div>
+
+            {/* QR Code Toggle */}
+            <button
+              onClick={() => setShowQR(!showQR)}
+              className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors"
+            >
+              <QrCode className="h-4 w-4" />
+              {showQR ? "Hide QR Code" : "Show QR Code for quick joining"}
+            </button>
+
+            {showQR && (
+              <div className="flex flex-col items-center gap-3 rounded-xl bg-white dark:bg-white p-4 shadow-sm border border-gray-100 dark:border-white/[0.06]">
+                <QRCodeSVG value={chamaShareUrl} size={160} level="M" includeMargin />
+                <p className="text-[11px] text-gray-500 text-center">
+                  Scan to join <strong className="text-gray-700 dark:text-gray-300">{chama.name}</strong>
+                </p>
+              </div>
+            )}
+
             <a
-              href={`https://wa.me/?text=${encodeURIComponent("Join my chama on Pamoja Wealth! Use invite code: " + inviteCode)}`}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={`https://wa.me/?text=${encodeURIComponent("Join my chama on Pamoja Wealth! Use invite code: " + inviteCode + " or visit " + chamaShareUrl)}`}
+              target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 transition-colors w-full"
             >
               Share via WhatsApp
@@ -554,6 +688,314 @@ export default function ChamaDetailPage() {
     });
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  // POT VIEW — Fast-track money pool. One-click pay, no tabs.
+  // ══════════════════════════════════════════════════════════════════
+  if (isPot) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto space-y-6">
+        <Link to="/chamas" className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </Link>
+        <div className="card-hover p-8 text-center space-y-5">
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-100 dark:bg-violet-500/[0.15]">
+            <HandCoins className="h-8 w-8 text-violet-600 dark:text-violet-400" />
+          </div>
+          <div>
+            <Badge variant="brand" className="text-xs mb-2">Quick Pot</Badge>
+            <h1 className="text-2xl font-black text-gray-900 dark:text-white">{chama.name}</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5">{chama.description}</p>
+          </div>
+          <div className="rounded-xl bg-violet-50 dark:bg-violet-500/[0.06] p-5">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Amount per person</p>
+            <p className="text-3xl font-black text-violet-700 dark:text-violet-400">{formatCurrency(chama.monthlyContribution)}</p>
+          </div>
+          <Button variant="premium" size="xl" className="w-full" onClick={() => setContributeOpen(true)}>
+            <HandCoins className="h-5 w-5 mr-2" /> Pay {formatCurrency(chama.monthlyContribution)} Now
+          </Button>
+          <p className="text-xs text-gray-400">Enter your M-Pesa number, pop-up appears, enter PIN, done.</p>
+          {canManage && (
+            <Button variant="outline" size="sm" onClick={openManage} className="w-full mt-3">
+              <Settings className="h-3.5 w-3.5 mr-2" /> Edit Pot Settings
+            </Button>
+          )}
+        </div>
+        <ContributeModal isOpen={contributeOpen} onClose={() => setContributeOpen(false)} mode="contribute"
+          group={{ id: chama.id, kind: "pot" as const, visibility: "public" as const, status: "active" as const, name: chama.name, slug: chamaId, description: chama.description, logoUrl: chama.logoUrl, location: chama.location, tags: [], createdAt: chama.createdAt, updatedAt: chama.createdAt, memberCount: chama.memberCount, totalFunds: chama.totalFunds, purpose: chama.description, monthlyContribution: chama.monthlyContribution } as any}
+          mpesaAccounts={userMpesa} suggestedAmount={chama.monthlyContribution} />
+        <Modal isOpen={manageOpen} onClose={() => setManageOpen(false)} title="Edit Pot" description="Update your pot settings.">
+          <div className="space-y-4">
+            <Input label="Pot Name" value={editName} onChange={(e: any) => setEditName(e.target.value)} placeholder="Pot name" />
+            <Input label="Description" value={editDescription} onChange={(e: any) => setEditDescription(e.target.value)} placeholder="What is this pot for?" />
+            <Input label="Amount Per Person (KES)" type="number" value={editContribution} onChange={(e: any) => setEditContribution(e.target.value)} />
+            <Input label="Location" value={editLocation} onChange={(e: any) => setEditLocation(e.target.value)} placeholder="City, Country" />
+            <Button className="w-full" variant="premium" onClick={handleSave}>Save Changes</Button>
+          </div>
+        </Modal>
+      </motion.div>
+    );
+  }
+  // FUNDRAISER VIEW — GoFundMe style. No membership, no roles, no tabs.
+  // Just: QR code → donate → receipt → donor wall.
+  // ══════════════════════════════════════════════════════════════════
+  if (isFundraiser) {
+    const rawChama = (detailQuery.data?.chama ?? {}) as any;
+    const fundraiserUrl = `https://pamojawealth.app/c/${chamaId}`;
+    const targetAmount = Number(rawChama.targetAmount ?? 0);
+    const raisedAmount = Number(rawChama.raisedAmount ?? chama.totalFunds ?? 0);
+    const pct = targetAmount > 0
+      ? Math.min(100, Math.round((raisedAmount / targetAmount) * 100))
+      : 0;
+
+    // Use donations from the top-level query
+    const donations = (donationsQuery.data?.items ?? []) as Array<{
+      id: string; donorName?: string; amount: number; message?: string;
+      isAnonymous?: boolean; createdAt: string; mpesaReceipt?: string;
+    }>;
+
+    return (
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+        <Link to="/chamas" className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </Link>
+
+        {/* ── Fundraiser Hero ── */}
+        <div className="card-hover p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <Badge variant="warning" className="text-xs">Fundraiser</Badge>
+            <Badge variant="brand" className="capitalize text-xs">{chama.category}</Badge>
+          </div>
+          <h1 className="text-2xl font-black text-gray-900 dark:text-white">{chama.name}</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{chama.description}</p>
+          <p className="text-xs text-gray-500">{chama.location}</p>
+
+          {/* Progress */}
+          {targetAmount > 0 && (
+            <div className="space-y-2">
+              <div className="h-3 rounded-full bg-gray-200 dark:bg-white/[0.08] overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${pct}%` }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                />
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="font-black text-gray-900 dark:text-white text-lg">{formatCurrency(chama.totalFunds)}</span>
+                <span className="text-gray-500">of {formatCurrency(targetAmount)} ({pct}%)</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Share & Donate Card ── */}
+        <div className="rounded-2xl border-2 border-amber-300 dark:border-amber-500/30 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-500/[0.06] dark:to-orange-500/[0.04] p-6 space-y-5">
+          <div className="flex items-center gap-2">
+            <QrCode className="h-5 w-5 text-amber-600" />
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Share & Get Donations</h3>
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Share this fundraiser. Anyone can scan the QR code, tap their phone, enter their M-Pesa PIN, and the money lands instantly. No sign-up needed.
+          </p>
+
+          <div className="grid sm:grid-cols-2 gap-5">
+            {/* QR Code */}
+            <div className="flex flex-col items-center gap-3 rounded-xl bg-white p-5 shadow-sm fundraiser-qr-download">
+              <QRCodeSVG value={fundraiserUrl} size={200} level="M" includeMargin />
+              <p className="text-xs text-gray-500 text-center font-medium">Scan to donate</p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col justify-center gap-3">
+              <input
+                readOnly
+                value={fundraiserUrl}
+                className="w-full rounded-xl border border-gray-200 dark:border-white/[0.08] bg-white px-3 py-2.5 text-xs font-mono text-brand-600 select-all text-center"
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+              <Button variant="premium" size="lg" className="w-full" onClick={() => setContributeOpen(true)}>
+                <HandCoins className="h-5 w-5 mr-2" /> Donate Now
+              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(fundraiserUrl);
+                    toast.success("Link copied! Share it anywhere.");
+                  }}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 dark:border-white/[0.08] bg-white px-3 py-2 text-xs font-medium hover:bg-gray-50 transition-colors"
+                >
+                  <Copy className="h-3.5 w-3.5" /> Copy Link
+                </button>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`Support "${chama.name}" 💛\n\n${fundraiserUrl}\n\nScan the QR or tap the link to donate. Every bit helps! 🙏`)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition-colors"
+                >
+                  WhatsApp
+                </a>
+              </div>
+              <button
+                onClick={() => {
+                  const svg = document.querySelector('.fundraiser-qr-download svg');
+                  if (!svg) return;
+                  const svgData = new XMLSerializer().serializeToString(svg);
+                  const canvas = document.createElement('canvas');
+                  canvas.width = 512; canvas.height = 512;
+                  const ctx = canvas.getContext('2d');
+                  const img = new Image();
+                  img.onload = () => {
+                    ctx!.fillStyle = '#ffffff'; ctx!.fillRect(0, 0, 512, 512);
+                    ctx!.drawImage(img, 0, 0, 512, 512);
+                    const a = document.createElement('a');
+                    a.download = `pamoja-${chama.name.replace(/\s/g, '-').toLowerCase()}.png`;
+                    a.href = canvas.toDataURL('image/png');
+                    a.click();
+                    toast.success('QR code saved! Print it, share it anywhere.');
+                  };
+                  img.src = `data:image/svg+xml;base64,${btoa(svgData)}`;
+                }}
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-white border border-gray-200 dark:border-white/[0.08] px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Download className="h-3.5 w-3.5" /> Download QR
+              </button>
+            </div>
+          </div>
+
+          {/* How it works */}
+          <div className="rounded-xl bg-white/80 p-4 text-xs text-gray-600 dark:text-gray-400 leading-relaxed space-y-1">
+            <p><strong className="text-gray-900 dark:text-white">How donors pay:</strong></p>
+            <p>1️⃣ Open the link or scan QR on their phone</p>
+            <p>2️⃣ Enter their M-Pesa phone number</p>
+            <p>3️⃣ M-Pesa pops up — they enter their PIN</p>
+            <p>4️⃣ Money moves instantly. Receipt sent automatically.</p>
+            <p className="text-emerald-700 dark:text-emerald-400 font-medium mt-2">✅ No sign-up. No app download. No Paybill. Just a phone number.</p>
+          </div>
+        </div>
+
+        {/* ── Donations Dashboard ── */}
+        <div className="card-hover p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Users className="h-4 w-4" /> Donations
+              {liveDonations.length > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-500/[0.15] px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                  </span>
+                  Live
+                </span>
+              )}
+            </h3>
+            <span className="text-xs text-gray-400">
+              {donations.length + liveDonations.length} donation{donations.length + liveDonations.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          {(liveDonations.length > 0 || members.length > 0) ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-white/[0.06] text-xs text-gray-400 uppercase tracking-wider">
+                    <th className="text-left py-2 font-medium">Donor</th>
+                    <th className="text-right py-2 font-medium">Amount</th>
+                    <th className="text-right py-2 font-medium hidden sm:table-cell">Receipt</th>
+                    <th className="text-right py-2 font-medium hidden md:table-cell">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {liveDonations.slice(0, 10).map((d, i) => (
+                    <tr key={d.id} className="border-b border-emerald-100 dark:border-emerald-500/10 last:border-0 bg-emerald-50/30 dark:bg-emerald-500/[0.02]">
+                      <td className="py-2.5">
+                        <div className="flex items-center gap-2">
+                          <Avatar src="" name={d.donorName} size="xs" />
+                          <div>
+                            <span className="font-medium text-gray-900 dark:text-white text-xs">{d.donorName}</span>
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 ml-1.5">Just now</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="text-right font-bold text-emerald-600 dark:text-emerald-400 text-xs tabular-nums">+{formatCurrency(d.amount)}</td>
+                      <td className="text-right text-[10px] text-gray-400 font-mono hidden sm:table-cell">{d.id.slice(-8).toUpperCase()}</td>
+                      <td className="text-right text-[10px] text-gray-400 hidden md:table-cell">{new Date(d.timestamp).toLocaleTimeString()}</td>
+                    </tr>
+                  ))}
+                  {donations.filter((d: any) => !liveDonations.some((ld) => ld.id === d.id)).map((d: any) => (
+                    <tr key={d.id} className="border-b border-gray-50 dark:border-white/[0.03] last:border-0">
+                      <td className="py-2.5">
+                        <div className="flex items-center gap-2">
+                          <Avatar src="" name={d.isAnonymous ? "Anon" : (d.donorName || "Donor")} size="xs" />
+                          <span className="font-medium text-gray-900 dark:text-white text-xs">{d.isAnonymous ? "Anonymous" : (d.donorName || "Supporter")}</span>
+                        </div>
+                      </td>
+                      <td className="text-right font-bold text-gray-700 dark:text-gray-300 text-xs tabular-nums">{formatCurrency(d.amount || 0)}</td>
+                      <td className="text-right text-[10px] text-gray-400 font-mono hidden sm:table-cell">{d.mpesaReceipt ? String(d.mpesaReceipt).slice(-8) : "-"}</td>
+                      <td className="text-right text-[10px] text-gray-400 hidden md:table-cell">{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 py-4 text-center">No donations yet. Be the first to donate! 🙏</p>
+          )}
+        </div>
+
+        {/* Owner-only: Edit settings */}
+        {canManage && (
+          <div className="card-hover p-4">
+            <Button variant="outline" size="sm" onClick={openManage} className="w-full">
+              <Settings className="h-3.5 w-3.5 mr-2" /> Edit Fundraiser Settings
+            </Button>
+          </div>
+        )}
+
+        {/* Contribute modal — works for anyone (no membership needed) */}
+        <ContributeModal
+          isOpen={contributeOpen}
+          onClose={() => setContributeOpen(false)}
+          mode="donate"
+          group={{
+            id: chama.id,
+            kind: "harambee" as const,
+            visibility: "public" as const,
+            status: "active" as const,
+            name: chama.name,
+            slug: chamaId,
+            description: chama.description,
+            logoUrl: chama.logoUrl,
+            location: chama.location,
+            tags: [],
+            createdAt: chama.createdAt,
+            updatedAt: chama.createdAt,
+            memberCount: chama.memberCount,
+            totalFunds: chama.totalFunds,
+            cause: "community" as const,
+            targetAmount: targetAmount || chama.totalFunds * 2,
+            raisedAmount: chama.totalFunds,
+            organizerVerified: true,
+          } as any}
+          mpesaAccounts={userMpesa}
+          suggestedAmount={chama.monthlyContribution || 500}
+        />
+
+        {/* Manage modal for fundraiser */}
+        <Modal isOpen={manageOpen} onClose={() => setManageOpen(false)} title="Edit Fundraiser" description="Update your fundraiser settings.">
+          <div className="space-y-4">
+            <Input label="Fundraiser Name" value={editName} onChange={(e: any) => setEditName(e.target.value)} placeholder="Fundraiser name" />
+            <Input label="Description" value={editDescription} onChange={(e: any) => setEditDescription(e.target.value)} placeholder="What is this fundraiser about?" />
+            <Input label="Suggested Donation (KES)" type="number" value={editContribution} onChange={(e: any) => setEditContribution(e.target.value)} />
+            <Input label="Location" value={editLocation} onChange={(e: any) => setEditLocation(e.target.value)} placeholder="City, Country" />
+            <Input label="M-Pesa Receive Number" value={editPaybill} onChange={(e: any) => setEditPaybill(e.target.value)} placeholder="e.g. 247247 or phone number" hint="Number where donations are received." />
+            <Button className="w-full" variant="premium" onClick={handleSave}>Save Changes</Button>
+          </div>
+        </Modal>
+      </motion.div>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // CHAMA VIEW — Normal member/role-based layout
+  // ══════════════════════════════════════════════════════════════════
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}

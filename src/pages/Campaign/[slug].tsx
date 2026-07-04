@@ -13,6 +13,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ContributeModal } from "@/components/payments/ContributeModal";
 import { DonorWall } from "@/components/fundraising/DonorWall";
 import { ShareCampaign } from "@/components/fundraising/ShareCampaign";
+import { QRShareCard } from "@/components/fundraising/QRShareCard";
 import * as chamaApi from "@/api/chama";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
@@ -270,9 +271,17 @@ export default function CampaignPage() {
             <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-500 space-y-1">
               <p className="flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-brand-500" />Verified platform</p>
               <p className="flex items-center gap-1"><Wallet className="h-3.5 w-3.5" />M-Pesa & Card accepted</p>
-              <p>2.5% platform fee on harambee donations</p>
+              <p>0.5% platform fee (KES 500 cap)</p>
             </div>
           </div>
+
+          {/* QR Code for quick sharing & donations */}
+          <QRShareCard
+            url={campaignUrl}
+            title={campaign.name}
+            description={`${pct}% raised — Help us reach ${formatCurrency(campaign.targetAmount)}`}
+            variant="fundraiser"
+          />
         </div>
       </div>
 

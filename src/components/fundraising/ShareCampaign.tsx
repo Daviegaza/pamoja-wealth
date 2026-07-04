@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Share2, Copy, Check, MessageCircle,
-  Link2, Smartphone, X,
+  Link2, Smartphone, X, QrCode,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface ShareCampaignProps {
   campaignTitle: string;
@@ -14,6 +15,7 @@ interface ShareCampaignProps {
   targetAmount: number;
   isOpen: boolean;
   onClose: () => void;
+  showQR?: boolean;
 }
 
 export function ShareCampaign({
@@ -24,8 +26,10 @@ export function ShareCampaign({
   targetAmount,
   isOpen,
   onClose,
+  showQR = true,
 }: ShareCampaignProps) {
   const [copied, setCopied] = useState(false);
+  const [showQrCode, setShowQrCode] = useState(false);
 
   const progressPct = targetAmount > 0 ? Math.round((amountRaised / targetAmount) * 100) : 0;
 
@@ -190,6 +194,50 @@ export function ShareCampaign({
                   </a>
                 ))}
               </div>
+
+              {/* QR Code Toggle */}
+              {showQR && (
+                <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <button
+                    onClick={() => setShowQrCode(!showQrCode)}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-700/50 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <QrCode className="w-4 h-4" />
+                    {showQrCode ? 'Hide QR Code' : 'Show QR Code'}
+                  </button>
+                  {showQrCode && (
+                    <div className="mt-3 flex flex-col items-center gap-3 bg-white dark:bg-white rounded-xl p-4 shadow-sm">
+                      <QRCodeSVG value={referralUrl} size={180} level="M" includeMargin />
+                      <p className="text-xs text-gray-500 text-center">
+                        Scan to open <strong>{campaignTitle}</strong> on your phone
+                      </p>
+                      <button
+                        onClick={() => {
+                          const svg = document.querySelector('.share-campaign-qr svg');
+                          if (!svg) return;
+                          const svgData = new XMLSerializer().serializeToString(svg);
+                          const canvas = document.createElement('canvas');
+                          canvas.width = 512; canvas.height = 512;
+                          const ctx = canvas.getContext('2d');
+                          const img = new Image();
+                          img.onload = () => {
+                            ctx!.fillStyle = '#ffffff'; ctx!.fillRect(0, 0, 512, 512);
+                            ctx!.drawImage(img, 0, 0, 512, 512);
+                            const a = document.createElement('a');
+                            a.download = `pamoja-campaign-${referralCode}.png`;
+                            a.href = canvas.toDataURL('image/png');
+                            a.click();
+                          };
+                          img.src = `data:image/svg+xml;base64,${btoa(svgData)}`;
+                        }}
+                        className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline"
+                      >
+                        Download QR Code
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Copy Link */}
               <button

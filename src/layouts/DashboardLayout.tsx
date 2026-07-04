@@ -99,8 +99,11 @@ export function DashboardLayout() {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200/60 dark:border-white/[0.05] bg-white/90 dark:bg-neutral-950/90 backdrop-blur-xl safe-area-bottom">
+      {/* Mobile Bottom Navigation — Capacitor-aware with safe area */}
+      <nav
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200/60 dark:border-white/[0.05] bg-white/90 dark:bg-neutral-950/90 backdrop-blur-xl"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
         <div className="flex items-center justify-around py-2">
           {mobileNav.map((item) => {
             const isActive = location.pathname === item.path || (item.path !== "/dashboard" && location.pathname.startsWith(item.path));
@@ -108,7 +111,11 @@ export function DashboardLayout() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`focus-ring flex flex-col items-center gap-1 px-3 py-1 rounded-xl text-[10px] font-medium transition-colors ${
+                onClick={() => {
+                  // Haptic feedback on tab switch (mobile native)
+                  try { import('@/lib/capacitor').then(m => m.haptics.button()); } catch {}
+                }}
+                className={`focus-ring flex flex-col items-center gap-1 px-3 py-1 rounded-xl text-[10px] font-medium transition-colors min-w-[56px] min-h-[44px] justify-center ${
                   isActive
                     ? "text-brand-600 dark:text-brand-400"
                     : "text-gray-400 dark:text-gray-500"

@@ -13,7 +13,11 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   // Without this, every page reload briefly has isAuthenticated=false and
   // redirects to /login before rehydration completes.
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let mounted = true;
+
     const check = () => {
+      if (!mounted) return;
       const state = useAuthStore.getState();
       // _hasHydrated is set by onRehydrateStorage callback
       if ((state as any)._hasHydrated) {
@@ -26,10 +30,14 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
         return;
       }
       // Poll until hydrated
-      const timer = setTimeout(check, 50);
-      return () => clearTimeout(timer);
+      timer = setTimeout(check, 50);
     };
     check();
+
+    return () => {
+      mounted = false;
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   // Still rehydrating — show a loading skeleton, not a redirect

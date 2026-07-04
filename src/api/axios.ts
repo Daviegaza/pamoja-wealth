@@ -352,7 +352,7 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const base = import.meta.env.VITE_API_BASE_URL ?? "https://api.pamojawealth.app/v1";
+      const base = api.defaults.baseURL ?? import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
       const r = await axios.post<{ success: true; data: { accessToken: string; refreshToken: string } }>(
         `${base}/auth/refresh`,
         { refreshToken },

@@ -4,8 +4,18 @@ export const createChamaSchema = z.object({
   name: z.string().min(3, "Chama name is required"),
   description: z.string().min(10, "Please provide a short description"),
   category: z.enum(["savings", "investment", "welfare", "mixed"]),
+  type: z.enum(["chama", "fundraiser", "pot"]),
+  privacy: z.enum(["public", "private", "invite_only"]),
   monthlyContribution: z.coerce.number().min(100, "Minimum contribution is 100"),
   location: z.string().min(2, "Location is required"),
+  mpesaPhone: z.string().optional().or(z.literal("")),
+  paybillNumber: z.string().optional().or(z.literal("")),
+  tillNumber: z.string().optional().or(z.literal("")),
+  bankName: z.string().optional().or(z.literal("")),
+  bankAccount: z.string().optional().or(z.literal("")),
+  bankBranch: z.string().optional().or(z.literal("")),
+  targetAmount: z.coerce.number().optional(),
+  deadline: z.string().optional(),
 });
 export type CreateChamaFormValues = z.infer<typeof createChamaSchema>;
 

@@ -68,6 +68,65 @@
     "next": "Endelea",
     "yes": "Ndio",
     "no": "Hapana",
-    "close": "Funga"
+    "close": "Funga",
+    "error": "Hitilafu",
+    "success": "Imefanikiwa",
+    "copy": "Nakili",
+    "copied": "Imenakiliwa",
+    "share": "Sambaza",
+    "download": "Pakua",
+    "upload": "Pakia",
+    "view": "Tazama",
+    "edit": "Hariri",
+    "remove": "Ondoa"
+  },
+  "payment": {
+    "stkPush": "Lipa kwa STK Push",
+    "phoneNumber": "Nambari ya simu",
+    "paybill": "Paybill",
+    "till": "Till Number",
+    "mpesa": "M-Pesa",
+    "bank": "Benki",
+    "card": "Kadi",
+    "amount": "Kiasi",
+    "contributeNow": "Changia Sasa",
+    "donateNow": "Toa Msaada Sasa",
+    "checkPhone": "Angalia simu yako",
+    "enterPin": "Weka nambari ya siri ya M-Pesa",
+    "receipt": "Stakabadhi",
+    "transactionComplete": "Malipo yamekamilika"
+  },
+  "trust": {
+    "auditTrail": "Njia ya ukaguzi",
+    "immutable": "Haiwezi kubadilishwa",
+    "transparent": "Wazi kwa wote",
+    "ledger": "Leda",
+    "verified": "Imethibitishwa"
+  },
+  "merryGoRound": {
+    "title": "Mzunguko wa Kuchangiana",
+    "activate": "Anzisha Mzunguko",
+    "currentRecipient": "Mpokeaji wa Sasa",
+    "pool": "Jumla ya Mchango",
+    "round": "Mzunguko",
+    "roundsLeft": "Mizunguko iliyobaki",
+    "nextRound": "Mzunguko Ujao",
+    "newCycle": "Mzunguko Mpya",
+    "sendPayout": "Tuma kupitia M-Pesa"
+  },
+  "credit": {
+    "score": "Alama ya Mkopo",
+    "excellent": "Bora",
+    "good": "Nzuri",
+    "fair": "Wastani",
+    "poor": "Dhaifu",
+    "improve": "Boresha kwa kuchangia mara kwa mara"
+  },
+  "engagement": {
+    "streaks": "Mfululizo",
+    "leaderboard": "Viongozi",
+    "milestones": "Hatua Muhimu",
+    "yourRank": "Nafasi yako",
+    "points": "Alama"
   }
 }

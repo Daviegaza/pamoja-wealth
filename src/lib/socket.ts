@@ -86,20 +86,29 @@ export function __mockEmit(event: string, payload: unknown): void {
   mockSocket?.emit(event, payload);
 }
 
-// ===== Idle disconnect for hidden tabs =====
+// ===== Idle disconnect for hidden tabs & mobile app background =====
 if (typeof document !== "undefined" && !USE_MOCKS) {
   let idleTimer: number | undefined;
+  const disconnect = () => {
+    idleTimer = window.setTimeout(() => {
+      if (document.hidden && socket.connected) socket.disconnect();
+    }, IDLE_TIMEOUT_MS);
+  };
+  const reconnect = () => {
+    if (idleTimer) window.clearTimeout(idleTimer);
+    if (!socket.connected) socket.connect();
+  };
+
   const onVisibilityChange = () => {
-    if (document.hidden) {
-      idleTimer = window.setTimeout(() => {
-        if (document.hidden && socket.connected) socket.disconnect();
-      }, IDLE_TIMEOUT_MS);
-    } else {
-      if (idleTimer) window.clearTimeout(idleTimer);
-      if (!socket.connected) socket.connect();
-    }
+    if (document.hidden) { disconnect(); } else { reconnect(); }
   };
   document.addEventListener("visibilitychange", onVisibilityChange);
+
+  // Capacitor mobile: listen for app pause/resume events
+  try {
+    window.addEventListener("capacitor:appPaused", disconnect as EventListener);
+    window.addEventListener("capacitor:appResumed", reconnect as EventListener);
+  } catch { /* non-critical */ }
 }
 
 // ===== Room helpers =====

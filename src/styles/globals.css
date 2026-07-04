@@ -337,6 +337,95 @@ body {
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.safe-area-left {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.safe-area-right {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* ===== Mobile Native-Feel Utilities ===== */
+
+/* Prevent text selection on interactive elements (native app feel) */
+.no-select {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Touch-optimized tap target (min 44px per WCAG + Apple HIG) */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Pull-to-refresh indicator animation */
+@keyframes pull-indicator {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.pull-indicator {
+  animation: pull-indicator 0.8s linear infinite;
+}
+
+/* Overscroll behavior — prevent web bounce on iOS */
+html.capacitor-native {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbar on mobile lists (native-feel) */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Swipe action reveal background */
+.swipe-action-bg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.2s;
+}
+
+/* Capacitor status bar background (runs behind the WebView) */
+.capacitor-statusbar-bg {
+  background-color: #059669;
+}
+.dark .capacitor-statusbar-bg {
+  background-color: #0a0a0f;
+}
+
+/* Bottom sheet backdrop */
+.bottom-sheet-backdrop {
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Disable iOS double-tap zoom on buttons */
+button, a, [role="button"] {
+  touch-action: manipulation;
+}
+
+/* Active state for mobile (replaces :hover on touch devices) */
+@media (hover: none) {
+  .card-hover:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+}
 
 /* ===== Reduced motion ===== */
 @media (prefers-reduced-motion: reduce) {

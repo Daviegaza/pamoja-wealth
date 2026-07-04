@@ -22,7 +22,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { Pagination } from "@/components/common/Pagination";
 import { useChamaStore } from "@/stores/chamaStore";
 import { useAuth } from "@/hooks/useAuth";
-import { getMockDatabase } from "@/mock";
+import { USE_MOCKS } from "@/lib/env";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { api } from "@/api/axios";
 import type { Transaction, ContributionRecord } from "@/types";
@@ -31,19 +31,28 @@ const statusVariant: Record<Transaction["status"], "success" | "warning" | "dang
   completed: "success", pending: "warning", failed: "danger", reversed: "default",
 };
 
-// Generate contribution records from members
-const db = getMockDatabase();
-const CONTRIBUTIONS: ContributionRecord[] = db.members.slice(0, 30).map((m, i) => ({
-  id: `contrib_${i}`,
-  chamaId: m.chamaId,
-  memberId: m.id,
-  memberName: m.fullName,
-  amount: db.chamas.find(c => c.id === m.chamaId)?.monthlyContribution ?? 5000,
-  month: new Date().toLocaleString("en-US", { month: "long", year: "numeric" }),
-  status: (["paid", "paid", "paid", "pending", "overdue"] as const)[i % 5],
-  paidAt: i % 5 < 3 ? new Date(Date.now() - i * 86400000).toISOString() : undefined,
-  method: (["mpesa", "bank", "cash"] as const)[i % 3],
-}));
+// Contribution records — from mock in demo, from API in production
+// When USE_MOCKS=false, data is fetched via useTransactions() and filtered for contributions
+const DEMO_CONTRIBUTIONS: ContributionRecord[] = [];
+// Lazy-init mock data only when needed (module-level, only in dev)
+if (USE_MOCKS && typeof window !== "undefined") {
+  import("@/mock").then(({ getMockDatabase }) => {
+    const db = getMockDatabase();
+    db.members.slice(0, 30).forEach((m: any, i: number) => {
+      DEMO_CONTRIBUTIONS.push({
+        id: `contrib_${i}`,
+        chamaId: m.chamaId,
+        memberId: m.id,
+        memberName: m.fullName,
+        amount: db.chamas.find((c: any) => c.id === m.chamaId)?.monthlyContribution ?? 5000,
+        month: new Date().toLocaleString("en-US", { month: "long", year: "numeric" }),
+        status: (["paid", "paid", "paid", "pending", "overdue"] as const)[i % 5],
+        paidAt: i % 5 < 3 ? new Date(Date.now() - i * 86400000).toISOString() : undefined,
+        method: (["mpesa", "bank", "cash"] as const)[i % 3],
+      });
+    });
+  });
+}
 
 export default function TreasuryPage() {
   const analytics = useAnalytics();
@@ -57,7 +66,7 @@ export default function TreasuryPage() {
   const myChamaIds = new Set(myMemberRecords.map((m) => m.chamaId));
 
   const chamaContribs = useMemo(() => {
-    let filtered = CONTRIBUTIONS.filter((c) => myChamaIds.has(c.chamaId));
+    let filtered = DEMO_CONTRIBUTIONS.filter((c) => myChamaIds.has(c.chamaId));
     if (activeChamaId) filtered = filtered.filter((c) => c.chamaId === activeChamaId);
     return filtered;
   }, [myChamaIds, activeChamaId]);

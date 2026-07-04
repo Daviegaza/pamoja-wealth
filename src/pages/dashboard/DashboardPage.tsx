@@ -28,7 +28,6 @@ import { useChamaStore } from "@/stores/chamaStore";
 import { useWalletStore } from "@/stores/walletStore";
 import { useMeetingStore } from "@/stores/meetingStore";
 import { usePermissions } from "@/hooks/usePermissions";
-import { getMockDatabase } from "@/mock";
 import { formatCurrency } from "@/lib/utils";
 import { MemberHealthCard } from "@/components/common/MemberHealthCard";
 import { AchievementBadge, getAchievements } from "@/components/common/AchievementBadge";
@@ -36,8 +35,6 @@ import { GoalTracker } from "@/components/common/GoalTracker";
 import { useGoalStore } from "@/stores/goalStore";
 import { StreakCard } from "@/components/engagement/StreakCard";
 import type { Role, Member, Loan } from "@/types";
-
-const db = getMockDatabase();
 
 const container = {
   hidden: { opacity: 0 },
@@ -180,7 +177,22 @@ export default function DashboardPage() {
 
   const myLoans = loans.filter((l) => l.borrowerId === user?.id).slice(0, 3);
   const openVotes = votes.filter((v) => v.status === "open").slice(0, 5);
-  const recentActivity = db.activity.slice(0, 5);
+  const recentActivity = storeMembers
+    .filter((m) => myChamaIds.has(m.chamaId))
+    .slice(0, 5)
+    .map((m) => {
+      const chamaName = myChamas.find((c) => c.id === m.chamaId)?.name ?? "Unknown";
+      const memberName = user?.fullName ?? "Member";
+      return {
+        id: m.id,
+        actorName: memberName,
+        actorAvatar: user?.avatarUrl ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(memberName)}`,
+        action: m.totalContributions > 0 ? `contributed KES ${m.totalContributions.toLocaleString()}` : `joined`,
+        target: chamaName,
+        timestamp: m.joinedAt,
+        icon: m.totalContributions > 0 ? "success" as const : "info" as const,
+      };
+    });
 
   // Real action handlers
   const handleContribute = () => {
