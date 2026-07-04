@@ -49,12 +49,13 @@ export function AIChatWidget() {
 
     try {
       const res = await chat({ messages: history });
+      const content = res?.message?.content ?? "No response from AI.";
       setMessages((prev) => [
         ...prev,
         {
           id: `a_${Date.now()}`,
           role: "assistant",
-          content: res.message.content,
+          content,
           timestamp: new Date().toISOString(),
         },
       ]);

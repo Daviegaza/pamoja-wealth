@@ -49,6 +49,13 @@ if (USE_MOCKS) {
  * mock rows) for endpoints the unauthenticated dev experience needs, or an
  * empty envelope as the last-resort fallback.
  */
+async function readBody(config: InternalAxiosRequestConfig): Promise<Record<string, unknown>> {
+  const raw = config.data;
+  if (!raw) return {};
+  if (typeof raw === "string") { try { return JSON.parse(raw) as Record<string, unknown>; } catch { return {}; } }
+  return raw as Record<string, unknown>;
+}
+
 async function resolveMockData(url: string, method: string, _config: InternalAxiosRequestConfig): Promise<unknown> {
   // Lazy-load the mock DB — avoids pulling ~500KB of fake data on prod builds.
   const { getMockDatabase } = await import("@/mock");
@@ -56,11 +63,18 @@ async function resolveMockData(url: string, method: string, _config: InternalAxi
 
   // GET → list / detail
   if (method === "get") {
-    // Chamas
+    // Chamas — literal paths + special cases FIRST, then the /:id catch-all.
     if (url === "/chamas" || url === "/chamas/") return db.chamas.slice(0, 50);
     if (url === "/chamas/discover") return db.chamas.slice(0, 50);
-    const chamaMatch = url.match(/^\/chamas\/([^/]+)$/);
-    if (chamaMatch) return db.chamas.find((c) => c.id === chamaMatch[1]) ?? db.chamas[0];
+    if (url === "/chamas/my-invitations" || url === "/chamas/invitations/mine") return [];
+    if (url === "/chamas/mine") return db.chamas.slice(0, 20);
+    // Guard: the /chamas/:id regex below would otherwise eat literal words
+    // like "my-invitations" and return an unrelated chama object, breaking
+    // .map() on the frontend. Only match id-like slugs (letters/digits/dash).
+    const chamaMatch = url.match(/^\/chamas\/([a-zA-Z0-9_-]{6,})$/);
+    if (chamaMatch && !chamaMatch[1].includes("-invitations") && !chamaMatch[1].startsWith("my-")) {
+      return db.chamas.find((c) => c.id === chamaMatch[1]) ?? db.chamas[0];
+    }
     const membersMatch = url.match(/^\/chamas\/([^/]+)\/members$/);
     if (membersMatch) return db.members.filter((m) => m.chamaId === membersMatch[1]).slice(0, 25);
     const rulesActiveMatch = url.match(/^\/chamas\/([^/]+)\/rules\/active$/);
@@ -112,10 +126,61 @@ async function resolveMockData(url: string, method: string, _config: InternalAxi
       };
     }
 
-    // Loans / Goals / Notifications
+    // Loans / Goals / Notifications / Investments / Documents / Meetings / Votes / Chat / Support / Webauthn / Fx
     if (url === "/loans") return db.loans.slice(0, 25);
     if (url === "/notifications") return db.notifications.slice(0, 40);
     if (url === "/notifications/unread-count") return { count: 3 };
+    if (url === "/goals") {
+      return [
+        { id: "g1", title: "House deposit", targetKes: 500000, currentKes: 180000, dueDate: "2026-12-31" },
+        { id: "g2", title: "Emergency fund", targetKes: 100000, currentKes: 42000, dueDate: "2026-09-30" },
+      ];
+    }
+    if (url === "/investments") return db.investments.slice(0, 25);
+    if (url === "/documents") return db.documents.slice(0, 20);
+    if (url === "/meetings") return db.meetings.slice(0, 15);
+    if (url === "/votes") return db.votes.slice(0, 15);
+    if (url === "/support/tickets") return [];
+    if (url === "/webauthn/credentials") return [];
+
+    // Chama detail sub-endpoints (chat, meetings, votes, invitations, join-requests)
+    const chatMatch = url.match(/^\/chamas\/([^/]+)\/chat$/);
+    if (chatMatch) return [];
+    const cmeetingsMatch = url.match(/^\/chamas\/([^/]+)\/meetings$/);
+    if (cmeetingsMatch) return db.meetings.filter((m) => m.chamaId === cmeetingsMatch[1]).slice(0, 10);
+    const cvotesMatch = url.match(/^\/chamas\/([^/]+)\/votes$/);
+    if (cvotesMatch) return db.votes.filter((v) => v.chamaId === cvotesMatch[1]).slice(0, 10);
+    const invitationsMatch = url.match(/^\/chamas\/([^/]+)\/invitations$/);
+    if (invitationsMatch) return [];
+    const joinReqsMatch = url.match(/^\/chamas\/([^/]+)\/join-requests$/);
+    if (joinReqsMatch) return [];
+
+    // My invitations, DMs, network, referral
+    if (url === "/chamas/my-invitations" || url === "/invitations/mine") return [];
+    if (url === "/dm/conversations") return [];
+    if (url === "/network") return { connections: [], suggestions: [] };
+    if (url === "/referral/code") return { code: "DAVIE01", link: "https://pamojawealth.app/join?ref=DAVIE01", totalReferrals: 3, totalEarnedKes: 1500 };
+
+    // Wallet accounts
+    if (url === "/wallet/bank-accounts") return [];
+    if (url === "/wallet/mpesa-accounts") return [];
+
+    // Ledger + audit for chama
+    const ledgerAuditLogMatch = url.match(/^\/chamas\/([^/]+)\/audit\/log$/);
+    if (ledgerAuditLogMatch) return [];
+    const ledgerAuditVerifyMatch = url.match(/^\/chamas\/([^/]+)\/audit\/verify$/);
+    if (ledgerAuditVerifyMatch) return { ok: true, checked: 0, brokenAt: null };
+
+    // Cap table + offerings
+    const capTableMatch = url.match(/^\/chamas\/([^/]+)\/cap-table$/);
+    if (capTableMatch) return { totalShares: 0, totalRaisedKes: 0, rows: [] };
+    const offeringsMatch = url.match(/^\/chamas\/([^/]+)\/offerings$/);
+    if (offeringsMatch) return [];
+    const pendingPayoutsMatch = url.match(/^\/chamas\/([^/]+)\/payouts\/pending$/);
+    if (pendingPayoutsMatch) return [];
+
+    // AML admin
+    if (url === "/aml/strs") return [];
 
     // Public impact + lessons + landing
     if (url === "/public/impact") {
@@ -161,7 +226,51 @@ async function resolveMockData(url: string, method: string, _config: InternalAxi
     return method === "get" ? [] : {};
   }
 
-  // Mutations — return neutral success shape (individual pages have their own richer branches).
+  // Mutations — richer defaults for endpoints pages consume via POST/PATCH/DELETE.
+  const joinMatch = url.match(/^\/chamas\/([^/]+)\/join$/);
+  if (joinMatch && method === "post") {
+    // Simulate approved instant-join.
+    return { chamaId: joinMatch[1], status: "approved", membershipId: `mock-mship-${Date.now()}` };
+  }
+  const contributeMatch = url.match(/^\/chamas\/([^/]+)\/contribute$/);
+  if (contributeMatch && method === "post") {
+    return { transactionId: `mock-tx-${Date.now()}`, checkoutRequestId: `mock-ck-${Date.now()}`, status: "stk_sent", expiresAt: new Date(Date.now() + 90_000).toISOString() };
+  }
+  const donateMatch = url.match(/^\/public\/donate\/([^/]+)$/);
+  if (donateMatch && method === "post") {
+    return { transactionId: `mock-tx-${Date.now()}`, checkoutRequestId: `mock-ck-${Date.now()}`, status: "stk_sent" };
+  }
+  if (url === "/goals" && method === "post") {
+    return { id: `g${Date.now()}`, ...(await readBody(_config)) };
+  }
+  if (url === "/support/tickets" && method === "post") {
+    return { id: `t${Date.now()}`, status: "open", createdAt: new Date().toISOString() };
+  }
+
+  if (method === "post") {
+    if (url === "/ai/insights") {
+      return {
+        insights: [
+          "Your Rafiki chama is on track — 94% on-time contribution rate this month.",
+          "Consider moving KES 15,000 surplus into a T-bill; current CBR yield ~13%.",
+          "Two loan applications need review — one high-trust, one flagged for guarantor check.",
+          "Your monthly savings rate places you in the top 22% of Pamoja members.",
+        ],
+      };
+    }
+    if (url === "/ai/chat") {
+      return {
+        message: {
+          role: "assistant",
+          content: "AI is running in mock mode. Wire the Anthropic key on the backend to see live answers. Meanwhile — your Rafiki chama is on track and you have 2 loan applications waiting review.",
+        },
+        tokens: 0,
+      };
+    }
+    if (url === "/ai/health-score") {
+      return { score: 82, band: "healthy", drivers: [] };
+    }
+  }
   return {};
 }
 

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Search, CheckCircle2, Clock, Mail, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import * as chamaApi from "@/api/chama";
+import { JoinRequirementsModal } from "@/components/chama/JoinRequirementsModal";
 
 type Tab = "code" | "discover" | "invitations";
 
@@ -30,6 +31,7 @@ export default function JoinChamaPage() {
   const [requestStatus, setRequestStatus] = useState<"idle" | "pending" | "done">("idle");
   const [requestedCode, setRequestedCode] = useState("");
   const [joiningId, setJoiningId] = useState<string | null>(null);
+  const [previewTarget, setPreviewTarget] = useState<{ id: string; name: string; monthlyContribution?: number; memberCount?: number } | null>(null);
 
   const {
     register,
@@ -208,9 +210,20 @@ export default function JoinChamaPage() {
                       size="sm"
                       className="w-full"
                       isLoading={joiningId === c.id}
-                      onClick={() => handleJoinPublic(c.id)}
+                      onClick={() => {
+                        if (c.type === "fundraiser") {
+                          navigate(`/chamas/${c.id}`);
+                          return;
+                        }
+                        setPreviewTarget({
+                          id: c.id,
+                          name: c.name,
+                          monthlyContribution: Number(c.monthlyContribution) || 0,
+                          memberCount: c.memberCount ?? 0,
+                        });
+                      }}
                     >
-                      {c.type === "fundraiser" ? "View campaign" : "Join chama"}
+                      {c.type === "fundraiser" ? "View campaign" : "See requirements & join"}
                     </Button>
                   </div>
                 </div>
@@ -297,6 +310,21 @@ export default function JoinChamaPage() {
         </div>
       )}
 
+
+      <JoinRequirementsModal
+        isOpen={!!previewTarget}
+        onClose={() => setPreviewTarget(null)}
+        chamaId={previewTarget?.id ?? ""}
+        chamaName={previewTarget?.name ?? ""}
+        monthlyContribution={previewTarget?.monthlyContribution}
+        memberCount={previewTarget?.memberCount}
+        confirming={joiningId === previewTarget?.id}
+        onConfirm={async () => {
+          if (!previewTarget) return;
+          await handleJoinPublic(previewTarget.id);
+          setPreviewTarget(null);
+        }}
+      />
     </div>
   );
 }

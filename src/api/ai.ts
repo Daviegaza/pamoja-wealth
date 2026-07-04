@@ -38,8 +38,8 @@ export async function chat(payload: ChatPayload): Promise<ChatResponse> {
 }
 
 export async function getInsights(payload: InsightsPayload = {}): Promise<string[]> {
-  const r = await api.post<Envelope<{ insights: string[] }>>("/ai/insights", payload);
-  return r.data.data.insights;
+  const r = await api.post<Envelope<{ insights?: string[] }>>("/ai/insights", payload);
+  return r.data.data?.insights ?? [];
 }
 
 export async function getHealthScore(
