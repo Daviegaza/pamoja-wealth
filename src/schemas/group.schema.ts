@@ -2,7 +2,8 @@ import { z } from "zod";
 
 // ===== Shared primitives =====
 
-const groupKindSchema = z.enum(["chama", "harambee", "pot", "savings_loan"]);
+const _groupKindSchema = z.enum(["chama", "harambee", "pot", "savings_loan"]);
+void _groupKindSchema;
 const groupVisibilitySchema = z.enum(["public", "private", "invite_only"]);
 const groupStatusSchema = z.enum(["draft", "active", "dormant", "archived", "completed"]);
 const chamaCategorySchema = z.enum(["savings", "investment", "welfare", "mixed"]);

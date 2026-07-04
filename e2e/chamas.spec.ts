@@ -75,7 +75,7 @@ test.describe("Chama management flow", () => {
         },
       });
       createdId = res?.data?.id ?? res?.id ?? res?.data?.chama?.id;
-    } catch (err) {
+    } catch {
       // Backend availability / schema drift shouldn't kill the whole suite —
       // fall back to seeding the client-side store via the UI create flow.
     }

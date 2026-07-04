@@ -15,6 +15,8 @@ import { getChatMessages, sendChatMessage } from "@/api/chat";
 import { StatCard } from "@/components/cards/StatCard";
 import { MemberCard, computeTrustScore } from "@/components/cards/MemberCard";
 import { ChamaChat } from "@/components/common/ChamaChat";
+import { LedgerAuditPanel } from "@/components/chama/LedgerAuditPanel";
+import { CapTablePanel } from "@/components/chama/CapTablePanel";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -425,6 +427,16 @@ export default function ChamaDetailPage() {
   );
 
   if (canManage) {
+    tabs.push({
+      value: "ledger",
+      label: "Ledger & Audit",
+      content: <LedgerAuditPanel chamaId={chamaId} chamaName={chama.name} />,
+    });
+    tabs.push({
+      value: "cap-table",
+      label: "Cap Table",
+      content: <CapTablePanel chamaId={chamaId} />,
+    });
     const pendingRequests: Array<{ id: string; userId: string; fullName?: string; message?: string; createdAt?: string }> = (joinRequestsQuery.data as unknown as Array<{ id: string; userId: string; fullName?: string; message?: string; createdAt?: string }>) ?? [];
     tabs.push({
       value: "management",
@@ -462,7 +474,13 @@ export default function ChamaDetailPage() {
               </div>
             </div>
           )}
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link to={`/rules/builder/${chamaId}`} className="card-hover p-4 hover:border-brand-300 dark:hover:border-brand-500/30 transition-all group border-brand-200/60 dark:border-brand-500/20 bg-gradient-to-br from-brand-50/50 to-transparent dark:from-brand-500/[0.04]">
+              <Settings className="h-5 w-5 text-brand-500 mb-2" />
+              <p className="text-xs text-gray-400 uppercase tracking-wider">Bylaws</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">Edit rules</p>
+              <span className="text-xs text-brand-600 dark:text-brand-400 font-medium group-hover:underline mt-1 inline-block">Open rule builder &rarr;</span>
+            </Link>
             <Link to="/treasury" className="card-hover p-4 hover:border-brand-300 dark:hover:border-brand-500/30 transition-all group">
               <Landmark className="h-5 w-5 text-brand-500 mb-2" />
               <p className="text-xs text-gray-400 uppercase tracking-wider">Treasury</p>

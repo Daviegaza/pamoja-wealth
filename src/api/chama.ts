@@ -217,7 +217,26 @@ export async function getRuleVersion(chamaId: string, version: number) {
   return r.data.data;
 }
 
-export async function saveRuleVersion(chamaId: string, ruleDoc: unknown, sourceText?: string) {
-  const r = await api.post<Envelope<ChamaRuleVersion>>(`/chamas/${chamaId}/rules`, { ruleDoc, sourceText });
+export async function saveRuleVersion(chamaId: string, ruleDoc: unknown, sourceText?: string, extra?: { approvedByIds?: string[]; emergency?: boolean; reason?: string; compiledBy?: string }) {
+  const r = await api.post<Envelope<ChamaRuleVersion>>(`/chamas/${chamaId}/rules`, {
+    ruleDoc,
+    sourceText,
+    compiledBy: extra?.compiledBy ?? "human",
+    approvedByIds: extra?.approvedByIds ?? [],
+    ...(extra?.emergency ? { emergency: true, reason: extra.reason } : {}),
+  });
+  return r.data.data;
+}
+
+export interface RuleGuardStatus {
+  isOfficer: boolean;
+  officerCount: number;
+  requiredSignatures: number;
+  cooldownEndsAt: string | null;
+  inCooldown: boolean;
+}
+
+export async function getRuleGuardStatus(chamaId: string): Promise<RuleGuardStatus> {
+  const r = await api.get<Envelope<RuleGuardStatus>>(`/chamas/${chamaId}/rules/guard`);
   return r.data.data;
 }

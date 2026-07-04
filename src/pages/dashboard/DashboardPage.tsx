@@ -35,9 +35,7 @@ import { AchievementBadge, getAchievements } from "@/components/common/Achieveme
 import { GoalTracker } from "@/components/common/GoalTracker";
 import { useGoalStore } from "@/stores/goalStore";
 import { StreakCard } from "@/components/engagement/StreakCard";
-import { ActivityFeed } from "@/components/engagement/ActivityFeed";
-import { Leaderboard } from "@/components/engagement/Leaderboard";
-import type { Role, Member, Loan, ActivityItem as MockActivityItem } from "@/types";
+import type { Role, Member, Loan } from "@/types";
 
 const db = getMockDatabase();
 
@@ -188,7 +186,7 @@ export default function DashboardPage() {
   const handleContribute = () => {
     const amount = parseInt(contributeAmount);
     if (!amount || amount <= 0) { toast.error("Enter a valid amount"); return; }
-    deposit(amount, contributeMethod);
+    deposit(amount, contributeMethod as "mpesa" | "bank" | "card");
     toast.success(`Contribution of ${formatCurrency(amount)} via ${contributeMethod === "mpesa" ? "M-Pesa" : "Bank"} received!`);
     setContributeOpen(false);
     setContributeAmount("5000");
@@ -585,7 +583,6 @@ export default function DashboardPage() {
           <Button className="w-full" variant="premium" size="lg" onClick={() => {
             if (!goalName || !goalTarget || !goalDate) { toast.error("Please fill in all fields"); return; }
             addGoal({
-              userId: user?.id ?? "usr_1",
               name: goalName,
               targetAmount: parseInt(goalTarget),
               targetDate: goalDate,

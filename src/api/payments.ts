@@ -12,7 +12,8 @@
 import { api } from "@/api/axios";
 import { __mockEmit } from "@/lib/socket";
 
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === "true";
+const _mocksEnv = import.meta.env.VITE_USE_MOCKS;
+const USE_MOCKS = _mocksEnv === "true" || (_mocksEnv === undefined && import.meta.env.DEV);
 
 // ===== ULID (lightweight, no extra dep) =====
 const ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -105,7 +106,7 @@ export async function contribute(req: ContributeRequest): Promise<ContributeResp
     return { transactionId, checkoutRequestId, status: "stk_sent", expiresAt };
   }
   const { data } = await api.post<ContributeResponse>(
-    `/groups/${req.groupId}/contribute`,
+    `/chamas/${req.groupId}/contribute`,
     { amount: req.amount, phone: req.phone },
     { headers: { "Idempotency-Key": ulid() } },
   );
@@ -121,7 +122,7 @@ export async function donateNow(req: DonateNowRequest): Promise<ContributeRespon
     return { transactionId, checkoutRequestId, status: "stk_sent", expiresAt };
   }
   const { data } = await api.post<ContributeResponse>(
-    `/groups/${req.groupId}/donate-now`,
+    `/chamas/${req.groupId}/donate-now`,
     {
       amount: req.amount,
       phone: req.phone,

@@ -9,6 +9,7 @@ import { ContributeModal } from "@/components/payments/ContributeModal";
 import { useGroupStore } from "@/stores/groupStore";
 import type { Group } from "@/types";
 import { WalletCard } from "@/components/cards/WalletCard";
+import { MultiCurrencyChips } from "@/components/wallet/MultiCurrencyChips";
 import { ChartCard } from "@/components/charts/ChartCard";
 import { WalletHistoryChart } from "@/components/charts/WalletHistoryChart";
 import { Button } from "@/components/ui/Button";
@@ -379,6 +380,7 @@ export default function WalletPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-4">
           <WalletCard wallet={wallet} />
+          <MultiCurrencyChips />
           <div className="grid grid-cols-2 gap-3">
             {[
               { label: "Total Deposits", value: formatCurrency(wallet.totalDeposits), icon: ArrowDownToLine, color: "text-emerald-600" },

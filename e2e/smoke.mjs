@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-undef */
 /**
  * End-to-end smoke test for Pamoja Wealth.
  *

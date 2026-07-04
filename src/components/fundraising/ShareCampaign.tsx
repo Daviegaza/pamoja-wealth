@@ -5,7 +5,6 @@ import {
   Link2, Smartphone, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/Button';
 
 interface ShareCampaignProps {
   campaignTitle: string;

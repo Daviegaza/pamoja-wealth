@@ -59,7 +59,7 @@ export function HeroSection() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-500" />
           </span>
-          <Sparkles className="h-3.5 w-3.5" /> Trusted by 200+ Chamas Across East Africa
+          <Sparkles className="h-3.5 w-3.5" /> New — Bylaw Compiler runs your chama for you
         </motion.div>
 
         {/* Headline */}
@@ -69,11 +69,10 @@ export function HeroSection() {
           transition={{ delay: 0.1 }}
           className="mt-8 text-4xl sm:text-5xl lg:text-7xl font-black tracking-tightest text-gray-900 dark:text-white max-w-6xl mx-auto leading-[1.04]"
         >
-          Your Chama,{" "}
+          Paste your bylaws.{" "}
           <span className="bg-gradient-to-r from-brand-600 via-brand-400 to-emerald-400 dark:from-brand-400 dark:via-brand-300 dark:to-emerald-300 bg-clip-text text-transparent">
-            Supercharged
+            We run the chama.
           </span>
-          .
         </motion.h1>
 
         {/* Subtitle */}
@@ -83,9 +82,9 @@ export function HeroSection() {
           transition={{ delay: 0.2 }}
           className="mt-6 text-base sm:text-xl text-gray-500 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed"
         >
-          The all-in-one platform that brings your savings group into the modern age.
-          Track contributions, manage loans, grow investments, and run meetings —
-          all from one <span className="font-semibold text-gray-700 dark:text-gray-200">beautiful, secure</span> place.
+          Describe your group in Swahili, English or Sheng.
+          Our AI compiles it into <span className="font-semibold text-gray-700 dark:text-gray-200">enforceable rules</span> —
+          contributions, penalties, votes, payouts — auto-run on M-Pesa. Zero treasurer discretion. Zero disputes.
         </motion.p>
 
         {/* CTA */}
@@ -95,16 +94,16 @@ export function HeroSection() {
           transition={{ delay: 0.3 }}
           className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3"
         >
-          <Link to="/register">
+          <Link to="/bylaws">
             <Button size="xl" variant="premium" rightIcon={<ArrowRight className="h-5 w-5" />}>
-              Start Free Today
+              Try the Bylaw Compiler
             </Button>
           </Link>
-          <a href="#how-it-works">
+          <Link to="/register">
             <Button size="xl" variant="outline" leftIcon={<Play className="h-5 w-5" />}>
-              Watch Demo
+              Start Free
             </Button>
-          </a>
+          </Link>
         </motion.div>
 
         {/* Trust line */}
@@ -114,7 +113,7 @@ export function HeroSection() {
           transition={{ delay: 0.4 }}
           className="mt-4 text-xs text-gray-400 dark:text-gray-500 font-medium"
         >
-          No credit card required &middot; Free for groups up to 15 members
+          No credit card. No install. Speak your rules — we do the rest.
         </motion.p>
 
         {/* Live Stats */}

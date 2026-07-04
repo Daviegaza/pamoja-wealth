@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Trophy, Medal, TrendingUp, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { Trophy, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
@@ -79,7 +79,7 @@ export function Leaderboard({ entries, title = "Top Contributors", subtitle = "T
       {/* Rest of the list */}
       {rest.length > 0 && (
         <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
-          {rest.map((entry, i) => (
+          {rest.map((entry, _i) => (
             <div
               key={entry.id}
               className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-750"

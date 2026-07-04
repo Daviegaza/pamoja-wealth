@@ -23,8 +23,7 @@ export function Tabs({
     if (defaultValue && items.some((it) => it.value === defaultValue) && active !== defaultValue) {
       setActive(defaultValue);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultValue, items.length]);
+  }, [defaultValue, items, active]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

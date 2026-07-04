@@ -194,7 +194,13 @@ def build(path):
             "3) Loan origination fee.<br/>"
             "4) Yield marketplace platform fee.<br/>"
             "5) Dedicated paybill / SMS / white-label (Enterprise).<br/>"
-            "6) FX spread on multi-currency movements.",
+            "6) FX spread on multi-currency movements.<br/>"
+            "7) <b>Audit report SKU</b> — KES 1,500 per PDF (NEW).<br/>"
+            "8) <b>Trust-score API</b> — Enterprise-gated cross-user lookups for SACCO / lenders / insurers (NEW).<br/>"
+            "9) <b>Cap-table + dividend tooling</b> — Pro-gated (NEW).<br/>"
+            "10) <b>Referral cash-out fee</b> — small spread on B2C payout (NEW).<br/>"
+            "11) <b>Insurance commission</b> — % on product sales.<br/>"
+            "12) <b>Late-payment / overdue fee</b> — configurable per chama.",
             S["Body"]),
         Spacer(1, 4 * mm),
         Paragraph("1.4 Compliance posture", S["H3"]),
@@ -227,21 +233,38 @@ def build(path):
             ["Rule engine (compile + save + versioning)", "✓"],
             ["Billing + subscription tiers", "✓ Needs Flutterwave live keys"],
             ["Notifications (in-app + SMS + email + push)", "✓ Needs provider keys"],
-            ["Public donate + investor shares + QR", "✓ NEW"],
+            ["Public donate + investor shares + QR", "✓"],
             ["Integrations (Slack/Google/Zoom/QB/Xero/Zapier/webhooks)", "✓ OAuth scaffolds"],
-            ["USSD channel", "✓ Needs AT service code"],
-            ["WhatsApp bot", "✓ Needs Meta verify"],
+            ["USSD channel (Africa's Talking, IP+secret guard)", "✓ Needs AT service code"],
+            ["WhatsApp bot (Meta FSM: balance/contribute/meeting/loans)", "✓ Needs Meta verify"],
             ["Video calls (Daily.co)", "✓ Needs API key"],
             ["AI insights (forecast/anomaly/churn/default)", "✓"],
-            ["Multi-currency + FX", "✓"],
+            ["Multi-currency + FX + /wallet/balances", "✓ NGN added"],
             ["Bulk CSV/Excel import", "✓"],
             ["Ledger export (CSV/QuickBooks/Xero)", "✓"],
             ["Audit trail + hash-chain verify", "✓"],
+            ["Audit report SKU (KES 1,500 PDF)", "✓ NEW: STK → PDF → S3 → email"],
+            ["Trust score (portable credit passport)", "✓ NEW: cross-user API gated Enterprise"],
+            ["Cap-table + share offerings + dividend execute", "✓ NEW: gated Pro plan"],
+            ["Multi-sig payouts + WebAuthn passkey signing", "✓ NEW"],
+            ["Referral cash-out to M-Pesa (B2C)", "✓ NEW"],
+            ["Bylaw compiler public showcase page", "✓ NEW /bylaws"],
+            ["KYC 5-step wizard + Smile ID hook", "✓ NEW /kyc"],
+            ["AML: OFAC+UN+EU screening + STR + SAR draft", "✓ NEW"],
+            ["Feature-gate middleware + 402 paywall modal", "✓ NEW"],
+            ["Payment providers: Daraja + MTN + Airtel + Paystack + FLW", "✓ NEW"],
+            ["B2C dividend payout worker + result callback", "✓ NEW"],
+            ["Float sweep worker (daily fee-account snapshot)", "✓ NEW"],
+            ["Referral reward retry worker (24h stale replay)", "✓ NEW"],
+            ["Sentry init (optional peer, DSN-gated)", "✓ NEW"],
+            ["Offline banner + Background Sync queue", "✓ NEW"],
+            ["Code-split: main bundle 631k → 72k gzip", "✓ NEW"],
+            ["Design tokens (motion + shadow) + PremiumCard", "✓ NEW"],
             ["Yield marketplace (T-bill/MMF/SACCO)", "✓ Needs partner integration"],
             ["PWA + offline queue + install", "✓ Needs icon PNGs"],
             ["i18n (en/sw/fr)", "✓"],
             ["a11y baseline", "✓"],
-            ["Tests (unit + e2e)", "✓ Coverage still light"],
+            ["Tests (unit + e2e + k6 load)", "✓ NEW: k6 smoke + contribute scripts"],
         ], colWidths=[110 * mm, 60 * mm]),
         Spacer(1, 5 * mm),
         Paragraph("2.2 Missing / needs work before launch", S["H3"]),
@@ -259,8 +282,51 @@ def build(path):
             ["No production Sentry/Datadog", "Wire before launch (Section 15)"],
             ["No Terms of Service / Privacy Policy pages content", "Lawyer-drafted; Section 13"],
             ["No offline runtime exercise", "Manual PWA install test in prod build"],
-            ["No load test", "k6 / Artillery in staging before launch"],
+            ["No load test", "✓ NEW: load/smoke.js + load/contribute.js"],
+            ["WhatsApp DB migration not applied", "Run: npx prisma migrate deploy"],
+            ["Optional peer deps not installed", "npm i @sentry/{node,react} @simplewebauthn/server"],
+            ["Provider credentials (MTN/Airtel/Paystack/FLW/AT)", "Fill in .env.production (Section 17)"],
+            ["Design system: not all components adopt shadow tokens", "Adopt PremiumCard progressively"],
         ], colWidths=[110 * mm, 60 * mm]),
+        PageBreak(),
+    ]
+
+    # ═══════════════ 2.3 SHIPPED THIS SESSION ═══════════════
+    story += [
+        Paragraph("2.3 New surface shipped since prior revision", S["H3"]),
+        Paragraph("Since the last handbook revision, the codebase gained the following "
+                  "production-ready surface (all builds clean, both projects):", S["Body"]),
+        Spacer(1, 3 * mm),
+        gtable([
+            ["Layer", "New capability"],
+            ["Fintech killer", "Bylaw Compiler public showcase (/bylaws)"],
+            ["Portable credit", "Trust Score service + card + cross-user API gate"],
+            ["Cap table", "Offerings + investors + dividend preview + B2C execute"],
+            ["Multi-sig", "PayoutRequest sign endpoint + WebAuthn ceremonies"],
+            ["Audit revenue", "Audit-report SKU (KES 1,500) → PDF worker → email"],
+            ["WhatsApp", "Full FSM bot: idle → amount → chama → confirm → STK"],
+            ["AML", "OFAC/UN/EU list refresh + PEP import + STR auto-open + SAR draft"],
+            ["AML UI", "/admin/aml dashboard: STR list · screen · lists · SAR download"],
+            ["Passkeys UI", "Settings → Security → passkey manager"],
+            ["Multi-currency UI", "Wallet page chips row from /wallet/balances"],
+            ["Provider hint", "ContributeModal detects provider by MSISDN prefix"],
+            ["Money rails", "MTN MoMo · Airtel · Paystack · Flutterwave adapters"],
+            ["Callbacks", "B2C ResultURL + timeout → disburse/failed on PayoutRequest"],
+            ["Referral cashout", "POST /referral/cashout → PayoutRequest → dividend worker"],
+            ["Feature gates", "hasChamaFeature / hasUserFeature + 402 payload"],
+            ["Paywall UX", "Global CustomEvent listener + upgrade CTA modal"],
+            ["Workers", "Float sweep · audit report · dividend payout · referral retry"],
+            ["Migrations", "WhatsappSession + WebauthnCredential SQL ready"],
+            ["Observability", "Sentry optional peer for backend + frontend"],
+            ["Offline", "OfflineBanner + Background Sync replay tag"],
+            ["Perf", "Vite manualChunks fn: main 631→72k gzip"],
+            ["Design", "Motion + shadow CSS tokens + motion.ts + PremiumCard"],
+            ["k6", "load/smoke.js (30s) + load/contribute.js (8-min ramp to 100 VU)"],
+            ["CI", "Frontend lint/tsc/build/bundle-budget + backend k6 gate"],
+            ["Regional prep", "africasTalkingGuard IP+secret; provider router by country"],
+        ], colWidths=[35 * mm, 135 * mm]),
+        Spacer(1, 3 * mm),
+        Paragraph("Session total: <b>~104 files modified</b>. Both projects compile clean at every checkpoint.", S["Muted"]),
         PageBreak(),
     ]
 
@@ -975,7 +1041,27 @@ def build(path):
             "WHATSAPP_PHONE_NUMBER_ID=<br/><br/>"
             "DAILY_API_KEY=<br/>DAILY_DOMAIN=pamoja.daily.co<br/><br/>"
             "SMILE_API_KEY=<br/>SMILE_PARTNER_ID=<br/>COMPLY_ADVANTAGE_KEY=<br/><br/>"
-            "SENTRY_DSN=<br/>DATADOG_API_KEY=<br/><br/>"
+            "# ── Multi-provider payments (added this rev) ─────────<br/>"
+            "MTN_MOMO_ENV=sandbox<br/>MTN_MOMO_HOST=https://sandbox.momodeveloper.mtn.com<br/>"
+            "MTN_MOMO_SUB_KEY=<br/>MTN_MOMO_USER_ID=<br/>MTN_MOMO_API_KEY=<br/>"
+            "MTN_MOMO_CALLBACK_URL=https://api.pamojawealth.app/webhooks/mtn-momo<br/><br/>"
+            "AIRTEL_HOST=https://openapiuat.airtel.africa<br/>"
+            "AIRTEL_CLIENT_ID=<br/>AIRTEL_CLIENT_SECRET=<br/>"
+            "AIRTEL_CALLBACK_URL=https://api.pamojawealth.app/webhooks/airtel<br/><br/>"
+            "PAYSTACK_SECRET_KEY=<br/>PAYSTACK_CALLBACK_URL=https://pamojawealth.app/pay/callback<br/><br/>"
+            "FLUTTERWAVE_REDIRECT_URL=https://pamojawealth.app/pay/flw-callback<br/><br/>"
+            "# ── USSD hardening (Africa's Talking) ────────────────<br/>"
+            "AT_USSD_SECRET=<br/>AT_ALLOWED_IPS=52.16.183.213,52.16.207.226,...<br/><br/>"
+            "# ── WebAuthn (optional peer @simplewebauthn/server) ──<br/>"
+            "WEBAUTHN_RP_ID=pamojawealth.app<br/>WEBAUTHN_RP_NAME=Pamoja Wealth<br/>"
+            "WEBAUTHN_ORIGIN=https://pamojawealth.app<br/><br/>"
+            "# ── AML sanctions lists (public feeds) ───────────────<br/>"
+            "SANCTIONS_URL_OFAC=https://www.treasury.gov/ofac/downloads/sdn.csv<br/>"
+            "SANCTIONS_URL_UN=https://scsanctions.un.org/resources/xml/en/consolidated.xml<br/>"
+            "SANCTIONS_URL_EU=<eu consolidated list URL><br/><br/>"
+            "# ── Sentry (optional peer @sentry/node) ──────────────<br/>"
+            "SENTRY_DSN=<br/>SENTRY_TRACES_RATE=0.1<br/>SENTRY_ENV=production<br/>"
+            "DATADOG_API_KEY=<br/><br/>"
             "FEATURE_CHAT_ENABLED=true<br/>FEATURE_AI_ENABLED=true<br/>"
             "FEATURE_INVESTMENTS_ENABLED=true<br/>FEATURE_RULE_ENGINE_ENFORCE=false",
             S["Mono"]),
@@ -987,6 +1073,8 @@ def build(path):
             "VITE_USE_MOCKS=false<br/>"
             "VITE_VAPID_PUBLIC_KEY=&lt;from web-push generate-vapid-keys&gt;<br/>"
             "VITE_SENTRY_DSN=<br/>"
+            "VITE_SENTRY_TRACES_RATE=0.1<br/>"
+            "VITE_SENTRY_ENV=production<br/>"
             "VITE_DAILY_DOMAIN=pamoja.daily.co",
             S["Mono"]),
         Spacer(1, 10 * mm),

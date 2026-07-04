@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard, Users, Wallet, CreditCard, TrendingUp, Calendar, Vote, FileText,
   BarChart3, Bot, Bell, Settings, Building2, ArrowLeftRight, UserCircle, LifeBuoy,
-  MessageSquare,
+  MessageSquare, Target, Share2, Sparkles,
 } from "lucide-react";
 import type { Permission } from "@/types";
 
@@ -17,11 +17,14 @@ export interface NavItem {
 export const PRIMARY_NAV: NavItem[] = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { label: "My Chamas", path: "/chamas", icon: Building2 },
+  { label: "Bylaw Compiler", path: "/rules/builder", icon: Sparkles, badge: "AI" },
   { label: "Members", path: "/members", icon: Users, permission: "manage_members" },
   { label: "Treasury", path: "/treasury", icon: Wallet, permission: "manage_treasury" },
   { label: "Loans", path: "/loans", icon: CreditCard },
   { label: "Investments", path: "/investments", icon: TrendingUp },
   { label: "Wallet", path: "/wallet", icon: Wallet },
+  { label: "Goals", path: "/goals", icon: Target },
+  { label: "FX", path: "/fx", icon: ArrowLeftRight },
   { label: "Transactions", path: "/transactions", icon: ArrowLeftRight },
   { label: "Meetings", path: "/meetings", icon: Calendar },
   { label: "Voting", path: "/voting", icon: Vote },
@@ -34,6 +37,7 @@ export const PRIMARY_NAV: NavItem[] = [
 
 export const SECONDARY_NAV: NavItem[] = [
   { label: "Notifications", path: "/notifications", icon: Bell },
+  { label: "Refer & earn", path: "/referral", icon: Share2 },
   { label: "Profile", path: "/profile", icon: UserCircle },
   { label: "Settings", path: "/settings", icon: Settings },
   { label: "Billing", path: "/billing", icon: CreditCard },

@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import {
   Calendar, Heart, MapPin, Share2, ShieldCheck, Users, Flag, Clock,
-  MessageCircle, Wallet, Loader2, AlertTriangle,
+  Wallet, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
@@ -15,7 +15,7 @@ import { DonorWall } from "@/components/fundraising/DonorWall";
 import { ShareCampaign } from "@/components/fundraising/ShareCampaign";
 import * as chamaApi from "@/api/chama";
 import { useAuth } from "@/hooks/useAuth";
-import { cn, formatCurrency, formatRelativeTime } from "@/lib/utils";
+import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 
 interface CampaignDonation {
   id: string;

@@ -19,7 +19,8 @@ import {
   mockStartCheckout,
 } from "@/mock/billing";
 
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === "true";
+const _mocksEnv = import.meta.env.VITE_USE_MOCKS;
+const USE_MOCKS = _mocksEnv === "true" || (_mocksEnv === undefined && import.meta.env.DEV);
 
 // ===== Public types =====
 

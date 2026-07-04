@@ -60,8 +60,7 @@ export default function MessagesPage() {
 
   useEffect(() => {
     if (activePeer) markReadMutation.mutate(activePeer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePeer]);
+  }, [activePeer, markReadMutation]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;

@@ -12,8 +12,16 @@
 import { useEffect } from "react";
 import { io, type Socket } from "socket.io-client";
 
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === "true";
-const BASE_RAW = import.meta.env.VITE_API_BASE_URL ?? "https://api.pamojawealth.app/v1";
+// Default to mocks in dev when the flag isn't set — most contributors
+// don't run the backend locally. Explicit VITE_USE_MOCKS=false opts in
+// to a real backend on the configured VITE_API_BASE_URL.
+const _mocksEnv = import.meta.env.VITE_USE_MOCKS;
+const USE_MOCKS = _mocksEnv === "true" || (_mocksEnv === undefined && import.meta.env.DEV);
+// In dev without VITE_API_BASE_URL, don't fall through to the prod host —
+// the socket would hammer wss://api.pamojawealth.app/ws and log endless
+// WebSocket connection failed errors in the console.
+const FALLBACK = import.meta.env.DEV ? "http://localhost:3000/api/v1" : "https://api.pamojawealth.app/v1";
+const BASE_RAW = import.meta.env.VITE_API_BASE_URL ?? FALLBACK;
 const SOCKET_URL = BASE_RAW.replace(/\/v\d+\/?$/, "");
 
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 min
@@ -114,6 +122,5 @@ export function useSocketEvent<T = unknown>(
     return () => {
       socket.off(event, wrapped);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event]);
+  }, [event, socket, handler]);
 }

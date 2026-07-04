@@ -39,10 +39,10 @@ type Fixtures = {
 };
 
 export const publicTest = base.extend<Fixtures>({
-  user: async ({}, use) => {
+  user: async (_ctx, use) => {
     await use(loadUser());
   },
-  apiRequest: async ({}, use) => {
+  apiRequest: async (_ctx, use) => {
     async function apiRequest<T>(
       path: string,
       init: { method?: string; body?: unknown; token?: string | null } = {}

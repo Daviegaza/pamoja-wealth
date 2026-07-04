@@ -9,6 +9,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useAuthStore } from "@/stores/authStore";
 import { api } from "@/api/axios";
 import { toast } from "sonner";
+import { WebauthnSettings } from "@/components/settings/WebauthnSettings";
 
 export default function SettingsPage() {
   const settings = useSettingsStore();
@@ -79,11 +80,14 @@ export default function SettingsPage() {
           {
             value: "security", label: "Security",
             content: (
-              <div className="card-base p-6 space-y-5">
-                <Switch checked={settings.twoFactorEnabled} onChange={(v) => settings.update({ twoFactorEnabled: v })} label="Two-factor authentication" />
-                <Button variant="outline" onClick={handleChangePassword} disabled={changingPw}>
-                  {changingPw ? "Sending…" : "Change password"}
-                </Button>
+              <div className="space-y-5">
+                <div className="card-base p-6 space-y-5">
+                  <Switch checked={settings.twoFactorEnabled} onChange={(v) => settings.update({ twoFactorEnabled: v })} label="Two-factor authentication" />
+                  <Button variant="outline" onClick={handleChangePassword} disabled={changingPw}>
+                    {changingPw ? "Sending…" : "Change password"}
+                  </Button>
+                </div>
+                <WebauthnSettings />
               </div>
             ),
           },

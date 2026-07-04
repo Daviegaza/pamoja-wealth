@@ -1,3 +1,4 @@
+/* eslint-disable no-undef, no-unused-vars */
 /* Pamoja Wealth service worker — offline queue + install prompt.
  * Strategies:
  *   - HTML shell: network-first, fallback to cache.

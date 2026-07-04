@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/Button";
 import { contribute, donateNow, type ContributeResponse } from "@/api/payments";
 import { useSocketEvent } from "@/lib/socket";
 import { cn, formatCurrency } from "@/lib/utils";
+import { providerForPhone } from "@/lib/payment-provider";
 import { useWalletStore } from "@/stores/walletStore";
 import { useGroupStore } from "@/stores/groupStore";
 import { useDonationStore } from "@/stores/donationStore";
@@ -631,6 +632,8 @@ export function ContributeModal({
   };
 
   const phoneDisplay = selectedAccount ? maskPhone(selectedAccount.phoneNumber) : "no number linked";
+  const activePhone = payMode === "other_phone" ? typedPhone : (selectedAccount?.phoneNumber ?? "");
+  const providerHint = activePhone ? providerForPhone(activePhone) : null;
 
   return (
     <>
@@ -653,6 +656,14 @@ export function ContributeModal({
             >
               <HeroRow group={group} />
               <AmountField amount={amountStr} onChange={setAmountStr} />
+              {providerHint && (
+                <div className="text-[11px] flex items-center gap-2 rounded-lg bg-brand-50/60 dark:bg-brand-500/[0.06] px-2.5 py-1.5 text-gray-700 dark:text-gray-200">
+                  <span>{providerHint.icon}</span>
+                  <span className="font-semibold">{providerHint.name}</span>
+                  <span className="text-gray-400">·</span>
+                  <span className="font-mono text-gray-500">{providerHint.currency}</span>
+                </div>
+              )}
               <FeeBreakdownRow fees={fees} group={group} />
 
               {/* ===== Mode picker — 3 radio chips ===== */}

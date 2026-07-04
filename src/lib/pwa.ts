@@ -6,10 +6,20 @@
  */
 export function registerPwa(): void {
   if (typeof window === "undefined") return;
+  // Dev-mode SW hijacks Vite HMR + navigation → login redirects break with
+  // "Failed to convert value to 'Response'". Register only in prod. In dev
+  // actively UNREGISTER any stale SW left over from a previous prod build.
+  const isProd = import.meta.env.PROD;
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/service-worker.js").catch(() => {
-      // Silent — SW is progressive enhancement.
-    });
+    if (isProd) {
+      navigator.serviceWorker.register("/service-worker.js").catch(() => {
+        // Silent — SW is progressive enhancement.
+      });
+    } else {
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        for (const r of regs) r.unregister();
+      }).catch(() => {});
+    }
   }
   window.addEventListener("online", () => {
     navigator.serviceWorker?.ready?.then((reg) => {

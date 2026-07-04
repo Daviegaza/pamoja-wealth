@@ -9,6 +9,24 @@
   --text-muted: 107 114 128;
   --border: 229 231 235;
   --ring: 5 150 105;
+
+  /* Motion tokens — kept in sync with src/lib/motion.ts */
+  --motion-xxs: 80ms;
+  --motion-xs:  120ms;
+  --motion-sm:  180ms;
+  --motion-md:  260ms;
+  --motion-lg:  400ms;
+  --motion-xl:  600ms;
+  --ease-out:      cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in:       cubic-bezier(0.4, 0, 0.9, 0);
+  --ease-in-out:   cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Elevation — layered box-shadows for real depth. */
+  --shadow-1: 0 1px 2px 0 rgb(0 0 0 / 0.04), 0 1px 3px 0 rgb(0 0 0 / 0.06);
+  --shadow-2: 0 2px 4px -1px rgb(0 0 0 / 0.05), 0 4px 8px -2px rgb(0 0 0 / 0.08);
+  --shadow-3: 0 4px 6px -2px rgb(0 0 0 / 0.05), 0 10px 20px -4px rgb(0 0 0 / 0.10);
+  --shadow-4: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 20px 40px -8px rgb(0 0 0 / 0.14);
 }
 .dark, [data-theme="dark"] {
   --bg: 10 10 15;

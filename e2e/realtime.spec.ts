@@ -135,8 +135,7 @@ test.describe("realtime — chat + notifications", () => {
     // chat round-trip, and resolve with the echoed message.
     const echoed = await page.evaluate(
       async ({ backend, chamaId, marker }) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const io = (window as any).io as (
+        const io = (window as unknown as { io: (url: string, opts: Record<string, unknown>) => unknown }).io as (
           url: string,
           opts: Record<string, unknown>
         ) => {

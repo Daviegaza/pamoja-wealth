@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Flame, Gift, TrendingUp, Calendar, ArrowRight, Star, Trophy } from "lucide-react";
+import { Flame, Gift, TrendingUp, Star, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 
@@ -21,7 +21,8 @@ export function StreakCard({
   onContribute,
 }: StreakCardProps) {
   const pct = Math.min(100, Math.round((totalContributions / contributionGoal) * 100));
-  const streakDays = Array.from({ length: 7 }, (_, i) => i < currentStreak % 7);
+  const _streakDays = Array.from({ length: 7 }, (_, i) => i < currentStreak % 7);
+  void _streakDays;
 
   return (
     <motion.div

@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Users, Gift, TrendingUp, Copy, Check, Share2, Link2,
+  Users, Gift, TrendingUp, Copy, Check, Share2,
   Award, ArrowRight, Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
+import { api } from '@/api/axios';
 
 interface ReferralStats {
   referralCode: string;
@@ -190,6 +192,40 @@ export function ReferralDashboard() {
           <div className="text-xs text-gray-500">Pending</div>
         </motion.div>
       </div>
+
+      {stats.totalEarnedKes >= 100 && (
+        <div className="bg-emerald-50 dark:bg-emerald-500/[0.08] rounded-xl p-4 border border-emerald-200/60 dark:border-emerald-500/20 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Cash out to M-Pesa</p>
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-300/80 mt-0.5">
+              Send your referral earnings direct to your registered phone. Minimum KES 100.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="premium"
+            leftIcon={<Wallet className="w-3.5 h-3.5" />}
+            onClick={async () => {
+              const raw = window.prompt(`Cash out amount (KES). Available: ${stats.totalEarnedKes}`);
+              if (!raw) return;
+              const amountKes = Number(raw.replace(/[^\d]/g, ""));
+              if (!Number.isFinite(amountKes) || amountKes < 100) {
+                toast.error("Enter a valid amount >= 100");
+                return;
+              }
+              try {
+                await api.post("/referral/cashout", { amountKes });
+                toast.success(`Queued · KES ${amountKes.toLocaleString("en-KE")} on the way`);
+              } catch (err) {
+                const msg = (err as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message;
+                toast.error(msg ?? "Cash-out failed");
+              }
+            }}
+          >
+            Cash out
+          </Button>
+        </div>
+      )}
 
       {/* How It Works */}
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">

@@ -136,6 +136,39 @@ function DiscoveryCardView({ card }: { card: DiscoveryCard }) {
   );
 }
 
+import { Sparkles } from "lucide-react";
+
+function FeaturedRibbon({ card }: { card: DiscoveryCard }) {
+  return (
+    <Link
+      to={`/c/${card.slug ?? card.id}`}
+      className="block rounded-3xl border border-brand-200/60 dark:border-brand-500/20 bg-gradient-to-br from-brand-50 via-white to-emerald-50/50 dark:from-brand-500/[0.06] dark:via-neutral-900/60 dark:to-emerald-500/[0.03] p-6 md:p-8 mb-8 hover:shadow-glow-md transition-shadow"
+    >
+      <div className="flex flex-col md:flex-row gap-6 items-center">
+        <img
+          src={card.coverImageUrl ?? `https://picsum.photos/seed/${card.id}/600/400`}
+          alt={card.name}
+          className="w-full md:w-64 h-40 md:h-40 object-cover rounded-2xl"
+        />
+        <div className="flex-1 min-w-0">
+          <Badge variant="warning" className="mb-2">
+            <Sparkles className="h-3 w-3 mr-1" /> Chama of the week
+          </Badge>
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white line-clamp-1">{card.name}</h2>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
+            {card.description || "Public chama gaining momentum on Pamoja Wealth."}
+          </p>
+          <div className="mt-4 flex items-center gap-4 flex-wrap text-xs text-gray-500 dark:text-gray-400">
+            <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {card.donorCount ?? card.memberCount ?? 0} members</span>
+            <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {card.location ?? "Nairobi"}</span>
+            <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(card.raisedAmount ?? 0)} raised</span>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 export default function Discover() {
   const [filter, setFilter] = useState<Filter>("all");
   const [category, setCategory] = useState<string>("all");
@@ -259,6 +292,9 @@ export default function Discover() {
       </section>
 
       <section className="max-w-7xl mx-auto px-6 pb-24">
+        {!isLoading && filtered[0] && filter === "all" && !query && (
+          <FeaturedRibbon card={filtered[0]} />
+        )}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {Array.from({ length: 6 }).map((_, i) => (<CardSkeleton key={i} />))}

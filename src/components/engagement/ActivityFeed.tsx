@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import {
-  TrendingUp, Users, Wallet, Vote, Calendar, Bell, Award,
-  HandCoins, MessageCircle, FileText, AlertCircle, Heart,
+  TrendingUp, Users, Vote, Calendar, Bell, Award,
+  HandCoins, MessageCircle, FileText, Heart,
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";

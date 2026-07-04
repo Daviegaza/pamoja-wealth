@@ -4,7 +4,10 @@ import type { User } from "@/types";
 import { getCurrentUser } from "@/mock";
 import * as authApi from "@/api/auth";
 
-const USE_MOCKS = (import.meta.env.VITE_USE_MOCKS ?? "false") === "true";
+// Default to mocks in dev — most contributors have no backend running.
+// Explicit VITE_USE_MOCKS=false enables the real backend path.
+const _mocksEnv = import.meta.env.VITE_USE_MOCKS;
+const USE_MOCKS = _mocksEnv === "true" || (_mocksEnv === undefined && import.meta.env.DEV);
 
 interface RegisterPayload {
   fullName: string;
@@ -101,7 +104,7 @@ export const useAuthStore = create<AuthState>()(
 
 // HMR: preserve auth state across Vite hot reloads
 if (import.meta.hot) {
-  import.meta.hot.accept((newModule) => {
+  import.meta.hot.accept(() => {
     // Zustand persist handles rehydration from localStorage automatically
   });
 }

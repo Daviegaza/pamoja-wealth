@@ -46,9 +46,18 @@ const DiscoverPage = lazy(() => import("@/pages/Discover"));
 const CampaignPage = lazy(() => import("@/pages/Campaign/[slug]"));
 const CreateGroupPage = lazy(() => import("@/pages/Create"));
 const RuleBuilderPage = lazy(() => import("@/pages/RuleBuilder"));
+const AmlDashboardPage = lazy(() => import("@/pages/admin/AmlDashboardPage"));
+const ImpactPage = lazy(() => import("@/pages/public/ImpactPage"));
+const LearnPage = lazy(() => import("@/pages/public/LearnPage"));
 const PricingPage = lazy(() => import("@/pages/Pricing"));
 const IntegrationsPage = lazy(() => import("@/pages/Integrations/IntegrationsPage"));
 const PublicDonatePage = lazy(() => import("@/pages/public/PublicDonatePage"));
+const BylawShowcasePage = lazy(() => import("@/pages/public/BylawShowcasePage"));
+const KycWizardPage = lazy(() => import("@/pages/kyc/KycWizardPage"));
+const GoalsPage = lazy(() => import("@/pages/goals/GoalsPage"));
+const ReferralPage = lazy(() => import("@/pages/referral/ReferralPage"));
+const SupportTicketPage = lazy(() => import("@/pages/support/SupportTicketPage"));
+const FxConverterPage = lazy(() => import("@/pages/fx/FxConverterPage"));
 const ShareLinkPage = lazy(() => import("@/pages/chamas/ShareLinkPage"));
 const InvestorPage = lazy(() => import("@/pages/chamas/InvestorPage"));
 
@@ -76,6 +85,9 @@ const router = createBrowserRouter([
       { path: "/pricing", element: withSuspense(PricingPage) },
       { path: "/give/:token", element: withSuspense(PublicDonatePage) },
       { path: "/invest/:token", element: withSuspense(PublicDonatePage) },
+      { path: "/bylaws", element: withSuspense(BylawShowcasePage) },
+      { path: "/impact", element: withSuspense(ImpactPage) },
+      { path: "/learn", element: withSuspense(LearnPage) },
     ],
   },
   {
@@ -116,6 +128,7 @@ const router = createBrowserRouter([
       { path: "/messages", element: withSuspense(MessagesPage) },
       { path: "/profile", element: withSuspense(ProfilePage) },
       { path: "/settings", element: withSuspense(SettingsPage) },
+      { path: "/admin/aml", element: withSuspense(AmlDashboardPage) },
       { path: "/billing", element: withSuspense(BillingPage) },
       { path: "/billing/upgrade", element: withSuspense(BillingPage) },
       { path: "/support", element: withSuspense(SupportPage) },
@@ -123,6 +136,11 @@ const router = createBrowserRouter([
       { path: "/create", element: withSuspense(CreateGroupPage) },
       { path: "/rules/builder", element: withSuspense(RuleBuilderPage) },
       { path: "/rules/builder/:groupId", element: withSuspense(RuleBuilderPage) },
+      { path: "/kyc", element: withSuspense(KycWizardPage) },
+      { path: "/goals", element: withSuspense(GoalsPage) },
+      { path: "/referral", element: withSuspense(ReferralPage) },
+      { path: "/support/new", element: withSuspense(SupportTicketPage) },
+      { path: "/fx", element: withSuspense(FxConverterPage) },
       { path: "/integrations", element: withSuspense(IntegrationsPage) },
       { path: "/chamas/:id/share", element: withSuspense(ShareLinkPage) },
       { path: "/chamas/:id/investors", element: withSuspense(InvestorPage) },
