@@ -1,6 +1,5 @@
 /**
- * PWA bootstrap: register service worker, request notification permission,
- * subscribe to push, expose install-prompt event.
+ * PWA bootstrap: register service worker and expose the install-prompt event.
  *
  * Call registerPwa() from src/main.tsx after React mounts.
  */
@@ -21,13 +20,6 @@ export function registerPwa(): void {
       }).catch(() => {});
     }
   }
-  window.addEventListener("online", () => {
-    navigator.serviceWorker?.ready?.then((reg) => {
-      // TypeScript doesn't have sync in lib.dom.d.ts by default.
-      (reg as unknown as { sync?: { register: (tag: string) => Promise<void> } }).sync?.register("pamoja-replay");
-    });
-  });
-
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     (window as unknown as { __pamojaInstallPrompt?: Event }).__pamojaInstallPrompt = e;
@@ -40,31 +32,4 @@ export async function promptInstall(): Promise<"accepted" | "dismissed" | "unava
   await e.prompt();
   const choice = await e.userChoice;
   return choice.outcome;
-}
-
-export async function subscribeToPush(vapidPublicKey: string): Promise<PushSubscription | null> {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return null;
-  const reg = await navigator.serviceWorker.ready;
-  const perm = await Notification.requestPermission();
-  if (perm !== "granted") return null;
-  const sub = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as BufferSource,
-  });
-  await fetch("/api/v1/push/register", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${localStorage.getItem("pamoja_token") ?? ""}`,
-    },
-    body: JSON.stringify({ token: JSON.stringify(sub) }),
-  });
-  return sub;
-}
-
-function urlBase64ToUint8Array(base64: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
-  const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = atob(b64);
-  return new Uint8Array([...raw].map((c) => c.charCodeAt(0)));
 }

@@ -7,8 +7,7 @@ export type NotificationType =
   | "error"
   | "loan"
   | "meeting"
-  | "vote"
-  | "wallet";
+  | "contribution";
 
 export interface NotificationDTO {
   id: string;

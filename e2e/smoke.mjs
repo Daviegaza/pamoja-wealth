@@ -3,21 +3,19 @@
 /**
  * End-to-end smoke test for Pamoja Wealth.
  *
- * Verifies backend + frontend + CORS + auth + socket.io in one pass:
+ * Verifies backend + frontend + CORS + auth + the core record flow in one pass:
  *   1. Frontend dev server is serving on 5174
  *   2. Backend /health returns ok
  *   3. CORS preflight from http://localhost:5174 is accepted
  *   4. POST /auth/register creates a user
  *   5. POST /auth/login returns an access token
  *   6. GET /users/me with the token returns the caller
- *   7. socket.io handshake completes with the token
- *   8. join:chama room emit + chat:send roundtrip receives chat:message
+ *   7. POST /chamas creates a chama (caller becomes chairperson)
+ *   8. Record a contribution for the caller, then confirm it as that member
  *
  * Run:  node e2e/smoke.mjs
  * Exit: 0 on success, 1 on any failure.
  */
-import { io } from "socket.io-client";
-
 const FRONTEND = process.env.FRONTEND_URL || "http://localhost:5174";
 const BACKEND = process.env.BACKEND_URL || "http://localhost:3000";
 const API = `${BACKEND}/api/v1`;
@@ -134,95 +132,38 @@ async function main() {
     return `me=${email}`;
   });
 
-  await step("socket.io handshake with token", async () => {
+  await step("create chama + record + confirm contribution", async () => {
     if (!accessToken) throw new Error("no token from login step");
-    const socket = io(BACKEND, {
-      path: "/ws",
-      transports: ["websocket"],
-      auth: { token: accessToken },
-      reconnection: false,
-      timeout: 5000,
-    });
-    await new Promise((resolve, reject) => {
-      const t = setTimeout(() => reject(new Error("connect timeout 5s")), 5000);
-      socket.on("connect", () => {
-        clearTimeout(t);
-        resolve();
-      });
-      socket.on("connect_error", (e) => {
-        clearTimeout(t);
-        reject(new Error(`connect_error: ${e.message}`));
-      });
-    });
-    const id = socket.id;
-    socket.disconnect();
-    return `socket.id=${id}`;
-  });
+    const headers = { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, Origin: ORIGIN };
 
-  await step("join:chama + chat roundtrip", async () => {
-    if (!accessToken) throw new Error("no token from login step");
-
-    // Create a chama to get a valid id.
     const createRes = await fetch(`${API}/chamas`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-        Origin: ORIGIN,
-      },
-      body: JSON.stringify({
-        name: `Smoke Chama ${stamp}`,
-        category: "savings",
-        privacy: "private",
-        monthlyContribution: 0,
-      }),
+      headers,
+      body: JSON.stringify({ name: `Smoke Chama ${stamp}`, category: "savings", monthlyContribution: 0 }),
     });
     const createJson = await createRes.json();
-    if (!createRes.ok) {
-      throw new Error(`POST /chamas HTTP ${createRes.status}: ${JSON.stringify(createJson)}`);
-    }
-    const chamaId = createJson?.data?.id ?? createJson?.data?.chama?.id;
+    if (!createRes.ok) throw new Error(`POST /chamas HTTP ${createRes.status}: ${JSON.stringify(createJson)}`);
+    const chamaId = createJson?.data?.id;
     if (!chamaId) throw new Error(`no chama id: ${JSON.stringify(createJson)}`);
 
-    const socket = io(BACKEND, {
-      path: "/ws",
-      transports: ["websocket"],
-      auth: { token: accessToken },
-      reconnection: false,
-      timeout: 5000,
+    const meRes = await fetch(`${API}/users/me`, { headers });
+    const me = (await meRes.json())?.data;
+
+    const today = new Date().toISOString().slice(0, 10);
+    const recRes = await fetch(`${API}/chamas/${chamaId}/contributions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ memberId: me.id, amount: 500, paidOn: today, method: "mpesa", mpesaReceipt: "SMK1234567" }),
     });
+    const recJson = await recRes.json();
+    if (!recRes.ok) throw new Error(`record HTTP ${recRes.status}: ${JSON.stringify(recJson)}`);
 
-    try {
-      await new Promise((resolve, reject) => {
-        const t = setTimeout(() => reject(new Error("connect timeout 5s")), 5000);
-        socket.on("connect", () => { clearTimeout(t); resolve(); });
-        socket.on("connect_error", (e) => {
-          clearTimeout(t);
-          reject(new Error(`connect_error: ${e.message}`));
-        });
-      });
-
-      const content = `smoke-${stamp}`;
-      const received = new Promise((resolve, reject) => {
-        const t = setTimeout(() => reject(new Error("chat:message timeout 3s")), 3000);
-        socket.on("chat:message", (payload) => {
-          if (payload?.chamaId === chamaId && payload?.message?.content === content) {
-            clearTimeout(t);
-            resolve(payload);
-          }
-        });
-      });
-
-      socket.emit("join:chama", chamaId);
-      // Give the server a tick to register the room membership before broadcasting.
-      await new Promise((r) => setTimeout(r, 100));
-      socket.emit("chat:send", { chamaId, content });
-
-      const payload = await received;
-      return `chamaId=${chamaId} echoed content="${payload.message.content}"`;
-    } finally {
-      socket.disconnect();
+    const confRes = await fetch(`${API}/chamas/${chamaId}/contributions/${recJson.data.id}/confirm`, { method: "POST", headers });
+    const confJson = await confRes.json();
+    if (!confRes.ok || confJson?.data?.status !== "confirmed") {
+      throw new Error(`confirm HTTP ${confRes.status}: ${JSON.stringify(confJson)}`);
     }
+    return `chamaId=${chamaId} contribution confirmed`;
   });
 
   console.log(`\n${passed} passed, ${failed} failed.`);

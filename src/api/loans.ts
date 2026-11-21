@@ -1,93 +1,82 @@
+/**
+ * Loan REGISTER. These are records of money a chama lent its own members out
+ * of the chama's own account. Pamoja does not lend, disburse or charge interest.
+ */
 import { api } from "./axios";
+import type { Envelope, PaymentMethod } from "./http-types";
 
-export type LoanStatus =
-  | "pending"
-  | "approved"
-  | "active"
-  | "completed"
-  | "defaulted"
-  | "rejected";
+export type LoanStatus = "active" | "completed" | "defaulted";
 
 export interface LoanDTO {
   id: string;
-  chamaId: string;
   borrowerId: string;
-  borrowerName?: string;
-  borrowerAvatar?: string;
-  amount: number;
-  interestRate: number;
-  termMonths: number;
-  status: LoanStatus;
-  purpose: string;
-  appliedDate: string;
-  approvedDate?: string;
-  dueDate: string;
+  borrowerName: string;
+  principal: number;
+  agreedRepayable: number | null;
   amountRepaid: number;
-  guarantors?: string[];
+  balance: number;
+  issuedOn: string;
+  dueDate: string;
+  purpose: string;
+  notes: string | null;
+  status: LoanStatus;
+  createdAt: string;
 }
 
 export interface RepaymentDTO {
   id: string;
-  loanId: string;
   amount: number;
-  principal?: number;
-  interest?: number;
+  paidOn: string;
+  method: PaymentMethod;
+  mpesaReceipt: string | null;
+  note: string | null;
+  recordedByName: string;
+  createdAt: string;
+}
+
+export interface LoanDetailDTO extends LoanDTO {
+  repayments: RepaymentDTO[];
+}
+
+export interface LoanInput {
+  borrowerId: string;
+  principal: number;
+  issuedOn: string;
   dueDate: string;
-  paidDate?: string;
-  status: "pending" | "paid" | "overdue";
-}
-
-export interface ListLoansParams {
-  chamaId?: string;
-  status?: LoanStatus;
-  page?: number;
-  pageSize?: number;
-}
-
-export interface CreateLoanPayload {
-  chamaId: string;
-  amount: number;
-  termMonths: number;
   purpose: string;
-  guarantorIds?: string[];
+  agreedRepayable?: number;
+  notes?: string;
 }
 
-export interface RepayLoanPayload {
+export interface RepaymentInput {
   amount: number;
+  paidOn: string;
+  method: PaymentMethod;
+  mpesaReceipt?: string;
+  note?: string;
 }
 
-interface Envelope<T> {
-  success: true;
-  data: T;
-  meta?: { total: number; page: number; pageSize: number; totalPages: number };
-}
-
-export async function listLoans(params?: ListLoansParams) {
-  const r = await api.get<Envelope<LoanDTO[]>>("/loans", { params });
-  return { items: r.data.data, meta: r.data.meta };
-}
-
-export async function getRepayments(id: string) {
-  const r = await api.get<Envelope<RepaymentDTO[]>>(`/loans/${id}/repayments`);
+export async function listLoans(chamaId: string) {
+  const r = await api.get<Envelope<LoanDTO[]>>(`/chamas/${chamaId}/loans`);
   return r.data.data;
 }
 
-export async function createLoan(payload: CreateLoanPayload) {
-  const r = await api.post<Envelope<LoanDTO>>("/loans", payload);
+export async function getLoan(chamaId: string, loanId: string) {
+  const r = await api.get<Envelope<LoanDetailDTO>>(`/chamas/${chamaId}/loans/${loanId}`);
   return r.data.data;
 }
 
-export async function approveLoan(id: string) {
-  const r = await api.post<Envelope<LoanDTO>>(`/loans/${id}/approve`);
+export async function recordLoan(chamaId: string, input: LoanInput) {
+  const r = await api.post<Envelope<LoanDTO>>(`/chamas/${chamaId}/loans`, input);
   return r.data.data;
 }
 
-export async function rejectLoan(id: string) {
-  const r = await api.post<Envelope<LoanDTO>>(`/loans/${id}/reject`);
+export async function recordRepayment(chamaId: string, loanId: string, input: RepaymentInput) {
+  const r = await api.post<Envelope<LoanDTO>>(`/chamas/${chamaId}/loans/${loanId}/repayments`, input);
   return r.data.data;
 }
 
-export async function repayLoan(id: string, payload: RepayLoanPayload) {
-  const r = await api.post<Envelope<LoanDTO>>(`/loans/${id}/repay`, payload);
+export async function setLoanStatus(chamaId: string, loanId: string, status: "active" | "defaulted") {
+  const r = await api.patch<Envelope<LoanDTO>>(`/chamas/${chamaId}/loans/${loanId}/status`, { status });
   return r.data.data;
 }

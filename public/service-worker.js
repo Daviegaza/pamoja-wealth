@@ -1,12 +1,15 @@
-/* eslint-disable no-undef, no-unused-vars */
-/* Pamoja Wealth service worker — offline queue + install prompt.
+/* eslint-disable no-undef */
+/* Pamoja Wealth service worker — app shell caching only.
  * Strategies:
- *   - HTML shell: network-first, fallback to cache.
- *   - Static assets (JS/CSS/images): stale-while-revalidate.
- *   - API GETs: cache-first with 60s TTL (works offline for last-known data).
- *   - API POST/PUT/DELETE while offline: queue in IndexedDB, replay on connectivity.
+ *   - HTML shell: network-first, fallback to cached index.html.
+ *   - Same-origin static assets (JS/CSS/images): stale-while-revalidate.
+ *   - API requests (any origin) and cross-origin requests: never intercepted or
+ *     cached. Chama records must always be fresh and must not persist on a
+ *     shared phone after logout.
+ *   - Mutations are never queued/replayed offline: replaying a "record
+ *     contribution" later could create duplicate financial records.
  */
-const CACHE = "pamoja-v1";
+const CACHE = "pamoja-v2";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -24,24 +27,14 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  if (request.method !== "GET") {
-    // Queue mutating requests while offline.
-    if (!navigator.onLine) {
-      event.respondWith(queueForReplay(request));
-      return;
-    }
-    return;
-  }
+  if (request.method !== "GET") return;
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/api/")) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request).catch(() => caches.match("/index.html")),
     );
-    return;
-  }
-
-  if (url.pathname.startsWith("/api/")) {
-    event.respondWith(networkFirstWithTtl(request, 60));
     return;
   }
 
@@ -56,74 +49,6 @@ async function staleWhileRevalidate(request) {
     return res;
   }).catch(() => cached);
   return cached ?? network;
-}
-
-async function networkFirstWithTtl(request, ttlSeconds) {
-  try {
-    const res = await fetch(request);
-    const cache = await caches.open(CACHE);
-    cache.put(request, res.clone());
-    return res;
-  } catch {
-    const cached = await caches.match(request);
-    return cached ?? new Response(JSON.stringify({ offline: true }), { status: 503, headers: { "Content-Type": "application/json" } });
-  }
-}
-
-async function queueForReplay(request) {
-  // Persist to IndexedDB via a lightweight store.
-  const body = await request.clone().text();
-  const entry = {
-    url: request.url,
-    method: request.method,
-    headers: [...request.headers.entries()],
-    body,
-    queuedAt: Date.now(),
-  };
-  try {
-    const db = await openDb();
-    const tx = db.transaction("queue", "readwrite");
-    tx.objectStore("queue").add(entry);
-  } catch { /* fall through */ }
-  return new Response(JSON.stringify({ queued: true }), { status: 202, headers: { "Content-Type": "application/json" } });
-}
-
-self.addEventListener("sync", (event) => {
-  if (event.tag === "pamoja-replay") event.waitUntil(replayQueue());
-});
-
-async function replayQueue() {
-  const db = await openDb();
-  const tx = db.transaction("queue", "readwrite");
-  const store = tx.objectStore("queue");
-  const all = await promisify(store.getAll());
-  for (const entry of all) {
-    try {
-      await fetch(entry.url, { method: entry.method, headers: entry.headers, body: entry.body });
-      store.delete(entry.id);
-    } catch { /* retry next sync */ }
-  }
-}
-
-function openDb() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open("pamoja-offline", 1);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains("queue")) {
-        db.createObjectStore("queue", { keyPath: "id", autoIncrement: true });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function promisify(req) {
-  return new Promise((resolve, reject) => {
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
 }
 
 // Push events (FCM web push).

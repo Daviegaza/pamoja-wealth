@@ -1,48 +1,36 @@
 import { api } from "./axios";
+import type { Envelope } from "./http-types";
 
 export interface GoalDTO {
   id: string;
-  userId: string;
-  chamaId: string | null;
   name: string;
   targetAmount: number;
   currentAmount: number;
   targetDate: string;
   createdAt: string;
-  updatedAt: string;
 }
 
-export interface CreateGoalPayload {
+export interface GoalInput {
   name: string;
   targetAmount: number;
   targetDate: string;
-  chamaId?: string;
 }
 
-export interface UpdateGoalPayload {
-  currentAmount?: number;
-  name?: string;
-  targetAmount?: number;
-  targetDate?: string;
-}
-
-interface Envelope<T> { success: true; data: T; }
-
-export async function listGoals(): Promise<GoalDTO[]> {
-  const r = await api.get<Envelope<GoalDTO[]>>("/goals");
+export async function listGoals(chamaId: string) {
+  const r = await api.get<Envelope<GoalDTO[]>>(`/chamas/${chamaId}/goals`);
   return r.data.data;
 }
 
-export async function createGoal(payload: CreateGoalPayload): Promise<GoalDTO> {
-  const r = await api.post<Envelope<GoalDTO>>("/goals", payload);
+export async function createGoal(chamaId: string, input: GoalInput) {
+  const r = await api.post<Envelope<GoalDTO>>(`/chamas/${chamaId}/goals`, input);
   return r.data.data;
 }
 
-export async function updateGoal(id: string, payload: UpdateGoalPayload): Promise<GoalDTO> {
-  const r = await api.patch<Envelope<GoalDTO>>(`/goals/${id}`, payload);
+export async function updateGoal(chamaId: string, goalId: string, input: Partial<GoalInput>) {
+  const r = await api.patch<Envelope<GoalDTO>>(`/chamas/${chamaId}/goals/${goalId}`, input);
   return r.data.data;
 }
 
-export async function deleteGoal(id: string): Promise<void> {
-  await api.delete(`/goals/${id}`);
+export async function deleteGoal(chamaId: string, goalId: string) {
+  await api.delete(`/chamas/${chamaId}/goals/${goalId}`);
 }

@@ -1,114 +1,74 @@
-import { CheckCheck, Bell, AlertCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { NotificationCard } from "@/components/cards/NotificationCard";
+import { toast } from "sonner";
+import { deleteNotification, listNotifications, markAllRead, markRead } from "@/api/notifications";
+import { Empty, LoadError, Loading, PageHeader } from "@/components/records/ui";
 import { Button } from "@/components/ui/Button";
-import { EmptyState } from "@/components/common/EmptyState";
-import { Pagination } from "@/components/common/Pagination";
-import { usePagination } from "@/hooks/usePagination";
-import {
-  listNotifications,
-  markAllRead,
-  markRead,
-  type NotificationDTO,
-} from "@/api/notifications";
-import { useSocketEvent } from "@/lib/socket";
-import type { Notification } from "@/types";
-
-function toDomainNotification(n: NotificationDTO): Notification {
-  return {
-    id: n.id,
-    userId: n.userId,
-    type: n.type,
-    title: n.title,
-    message: n.message,
-    createdAt: n.createdAt,
-    isRead: n.isRead,
-    actionUrl: n.actionUrl ?? undefined,
-  };
-}
+import { formatRelativeTime } from "@/lib/utils";
+import { apiErrorMessage } from "@/lib/download";
+import { cn } from "@/lib/utils";
 
 export default function NotificationsPage() {
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [page, setPage] = useState(1);
+  const list = useQuery({ queryKey: ["notifications", page], queryFn: () => listNotifications({ page, pageSize: 20 }) });
+  const refresh = () => void qc.invalidateQueries({ queryKey: ["notifications"] });
 
-  const query = useQuery({
-    queryKey: ["notifications"],
-    queryFn: () => listNotifications(),
+  const readOne = useMutation({ mutationFn: markRead, onSuccess: refresh });
+  const readAll = useMutation({
+    mutationFn: markAllRead,
+    onSuccess: refresh,
+    onError: (err) => toast.error(apiErrorMessage(err)),
+  });
+  const remove = useMutation({
+    mutationFn: deleteNotification,
+    onSuccess: refresh,
+    onError: (err) => toast.error(apiErrorMessage(err)),
   });
 
-  useSocketEvent("notification:new", () => {
-    queryClient.invalidateQueries({ queryKey: ["notifications"] });
-  });
-
-  const markReadMutation = useMutation({
-    mutationFn: (id: string) => markRead(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
-  });
-
-  const markAllMutation = useMutation({
-    mutationFn: () => markAllRead(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
-  });
-
-  const notifications: Notification[] = (query.data?.items ?? []).map(toDomainNotification);
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
-  const { page, totalPages, paginated, goToPage } = usePagination(notifications, 12);
+  const totalPages = list.data?.meta?.totalPages ?? 1;
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Notifications</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {unreadCount} unread notifications
-          </p>
-        </div>
-        {unreadCount > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            leftIcon={<CheckCheck className="h-4 w-4" />}
-            onClick={() => markAllMutation.mutate()}
-            disabled={markAllMutation.isPending}
-          >
-            Mark all as read
-          </Button>
-        )}
-      </div>
-
-      {query.isLoading ? (
-        <div className="card-base p-8 text-center text-sm text-gray-500 dark:text-gray-400">
-          Loading notifications...
-        </div>
-      ) : query.isError ? (
-        <EmptyState
-          icon={AlertCircle}
-          title="Could not load notifications"
-          description="Please check your connection and try again."
-        />
-      ) : paginated.length === 0 ? (
-        <EmptyState
-          icon={Bell}
-          title="No notifications yet"
-          description="You're all caught up — no notifications yet"
-        />
+    <div className="max-w-3xl space-y-6">
+      <PageHeader
+        title="Notifications"
+        actions={<Button variant="outline" size="sm" isLoading={readAll.isPending} onClick={() => readAll.mutate()}>Mark all as read</Button>}
+      />
+      {list.isLoading ? (
+        <Loading />
+      ) : list.isError ? (
+        <LoadError message={apiErrorMessage(list.error, "Could not load notifications.")} onRetry={() => list.refetch()} />
+      ) : (list.data?.items.length ?? 0) === 0 ? (
+        <Empty title="You're all caught up" />
       ) : (
-        <>
-          <div className="card-base divide-y divide-gray-100 dark:divide-white/5">
-            {paginated.map((n) => (
-              <NotificationCard
-                key={n.id}
-                notification={n}
-                onClick={() => {
-                  if (!n.isRead) markReadMutation.mutate(n.id);
-                  if (n.actionUrl) navigate(n.actionUrl);
-                }}
-              />
-            ))}
-          </div>
-          <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} />
-        </>
+        <ul className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+          {list.data!.items.map((n) => (
+            <li key={n.id} className="flex items-start gap-3 py-3">
+              <span className={cn("mt-1.5 h-2 w-2 rounded-full shrink-0", n.isRead ? "bg-transparent" : "bg-brand-500")} aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <p className={cn("text-sm", n.isRead ? "text-gray-600 dark:text-gray-400" : "font-semibold text-gray-900 dark:text-white")}>
+                  {n.actionUrl ? <Link to={n.actionUrl} onClick={() => !n.isRead && readOne.mutate(n.id)} className="hover:underline">{n.title}</Link> : n.title}
+                </p>
+                <p className="text-sm text-gray-500">{n.message}</p>
+                <p className="text-xs text-gray-400">{formatRelativeTime(n.createdAt)}</p>
+              </div>
+              <div className="flex gap-1">
+                {!n.isRead && <Button size="sm" variant="ghost" onClick={() => readOne.mutate(n.id)}>Mark read</Button>}
+                <Button size="sm" variant="ghost" aria-label={`Delete notification ${n.title}`} onClick={() => remove.mutate(n.id)}>Delete</Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm text-gray-500">
+          <span>Page {page} of {totalPages}</span>
+          <span className="flex gap-2">
+            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
+            <Button size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+          </span>
+        </div>
       )}
     </div>
   );

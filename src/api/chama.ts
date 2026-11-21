@@ -1,242 +1,100 @@
 import { api } from "./axios";
+import type { Envelope } from "./http-types";
 
-export type Privacy = "public" | "private" | "invite_only";
-export type ChamaKind = "chama" | "fundraiser";
-export type Category = "savings" | "investment" | "welfare" | "mixed";
+export type ChamaCategory = "savings" | "welfare" | "mixed" | "investment";
 
 export interface ChamaDTO {
   id: string;
   name: string;
-  slug?: string;
+  slug: string;
   description: string | null;
-  category: Category;
-  type: ChamaKind;
-  privacy: Privacy;
-  logoUrl: string | null;
-  coverImageUrl?: string | null;
+  category: ChamaCategory;
   location: string | null;
-  tags?: string[];
-  memberCount?: number;
-  donationCount?: number;
-  totalFunds: number;
   monthlyContribution: number;
-  targetAmount?: number | null;
-  raisedAmount?: number;
-  deadline?: string | null;
-  status?: string;
-  createdAt: string;
-  myRole?: string | null;
-  myCustomTitle?: string | null;
-}
-
-interface Envelope<T> { success: true; data: T; meta?: { total: number; page: number; pageSize: number; totalPages: number }; }
-
-export async function listMyChamas(params?: { search?: string; category?: string; page?: number; pageSize?: number }) {
-  const r = await api.get<Envelope<ChamaDTO[]>>("/chamas", { params });
-  return { items: r.data.data, meta: r.data.meta };
-}
-
-export async function discover(params?: { search?: string; category?: Category; type?: ChamaKind; location?: string; tag?: string; page?: number; pageSize?: number }) {
-  const r = await api.get<Envelope<ChamaDTO[]>>("/chamas/discover", { params });
-  return { items: r.data.data, meta: r.data.meta };
-}
-
-export interface ChamaDetailMember {
-  id: string;
-  userId: string;
-  chamaId: string;
-  fullName: string;
-  avatarUrl: string | null;
-  role: string;
-  totalContributions: number;
-  shares: number;
+  paymentInstructions: string | null;
   status: string;
-  contributionStreak: number;
+  memberCount: number;
+  myRole: string | null;
+  currentPlanCode: string;
+  createdAt: string;
+}
+
+export interface ChamaInput {
+  name: string;
+  description?: string;
+  category: ChamaCategory;
+  location?: string;
+  monthlyContribution?: number;
+  paymentInstructions?: string;
+}
+
+export interface MemberDTO {
+  membershipId: string;
+  userId: string;
+  fullName: string;
+  phone: string | null;
+  role: string;
+  status: string;
   joinedAt: string;
 }
 
-export interface ChamaDetail {
-  chama: ChamaDTO & { nextMeetingDate?: string | null; updatedAt?: string };
-  members: ChamaDetailMember[];
-  stats: Record<string, unknown>;
+export interface InviteCodeDTO {
+  code: string;
+  expiresAt: string | null;
 }
 
-export async function getChama(id: string) {
-  const r = await api.get<Envelope<ChamaDetail>>(`/chamas/${id}`);
+export async function listMyChamas() {
+  const r = await api.get<Envelope<ChamaDTO[]>>("/chamas");
   return r.data.data;
 }
 
-export async function getMembers(id: string, params?: { search?: string; role?: string; page?: number; pageSize?: number }) {
-  const r = await api.get<Envelope<ChamaDetailMember[]>>(`/chamas/${id}/members`, { params });
-  return { items: r.data.data, meta: r.data.meta };
-}
-
-export async function createChama(data: {
-  name: string;
-  description?: string;
-  category: Category;
-  type?: ChamaKind;
-  privacy?: Privacy;
-  monthlyContribution: number;
-  location?: string;
-  tags?: string[];
-  coverImageUrl?: string;
-  targetAmount?: number;
-  deadline?: string;
-  requireKyc?: boolean;
-  maxMembers?: number;
-}) {
-  const r = await api.post<Envelope<{ chama: ChamaDTO; inviteCode: string }>>("/chamas", data);
+export async function getChama(chamaId: string) {
+  const r = await api.get<Envelope<ChamaDTO>>(`/chamas/${chamaId}`);
   return r.data.data;
 }
 
-export async function joinChama(id: string, body: { inviteCode?: string; invitationToken?: string; message?: string }) {
-  const r = await api.post<Envelope<unknown>>(`/chamas/${id}/join`, body);
+export async function createChama(input: ChamaInput) {
+  const r = await api.post<Envelope<ChamaDTO>>("/chamas", input);
   return r.data.data;
 }
 
-export async function updateChama(id: string, data: {
-  name?: string;
-  description?: string;
-  monthlyContribution?: number;
-  location?: string;
-  status?: string;
-  paybillAccountNumber?: string;
-}) {
-  const r = await api.patch<Envelope<ChamaDTO>>(`/chamas/${id}`, data);
+export async function updateChama(chamaId: string, input: Partial<ChamaInput>) {
+  const r = await api.patch<Envelope<ChamaDTO>>(`/chamas/${chamaId}`, input);
   return r.data.data;
 }
 
-export type ChamaRole = "owner" | "admin" | "chairperson" | "secretary" | "treasurer" | "member";
+export async function archiveChama(chamaId: string) {
+  await api.delete(`/chamas/${chamaId}`);
+}
 
-export async function removeMemberFromChama(chamaId: string, userId: string) {
-  const r = await api.post<Envelope<{ removed: true }>>(`/chamas/${chamaId}/remove-member/${userId}`);
+export async function listMembers(chamaId: string) {
+  const r = await api.get<Envelope<MemberDTO[]>>(`/chamas/${chamaId}/members`);
   return r.data.data;
 }
 
-export async function updateMemberRole(chamaId: string, userId: string, role: ChamaRole, customTitle?: string | null) {
-  const r = await api.post<Envelope<{ role: ChamaRole; customTitle?: string | null }>>(
-    `/chamas/${chamaId}/members/${userId}/role`,
-    { role, ...(customTitle !== undefined && { customTitle }) },
+export async function changeMemberRole(chamaId: string, userId: string, role: string) {
+  const r = await api.patch<Envelope<MemberDTO>>(`/chamas/${chamaId}/members/${userId}`, { role });
+  return r.data.data;
+}
+
+export async function removeMember(chamaId: string, userId: string) {
+  await api.delete(`/chamas/${chamaId}/members/${userId}`);
+}
+
+export async function createInviteCode(chamaId: string, expiresInDays?: number) {
+  const r = await api.post<Envelope<InviteCodeDTO>>(
+    `/chamas/${chamaId}/invite-codes`,
+    expiresInDays ? { expiresInDays } : {},
   );
   return r.data.data;
 }
 
-export async function inviteToChama(id: string, body: {
-  method: "phone" | "email" | "username" | "link" | "qr";
-  phone?: string;
-  email?: string;
-  username?: string;
-  message?: string;
-  expiresInDays?: number;
-}) {
-  const r = await api.post<Envelope<{ invitationId?: string; token: string; link: string; expiresAt: string; inviteCode?: string }>>(
-    `/chamas/${id}/invite`, body
-  );
+export async function listInviteCodes(chamaId: string) {
+  const r = await api.get<Envelope<InviteCodeDTO[]>>(`/chamas/${chamaId}/invite-codes`);
   return r.data.data;
 }
 
-export async function searchUsersForInvite(chamaId: string, q: string) {
-  const r = await api.get<Envelope<Array<{ id: string; username: string | null; fullName: string; phone: string; email: string; avatarUrl: string | null; location: string | null }>>>(
-    `/chamas/${chamaId}/search-users`, { params: { q } }
-  );
-  return r.data.data;
-}
-
-export async function myInvitations() {
-  const r = await api.get<Envelope<unknown[]>>("/chamas/my-invitations");
-  return r.data.data;
-}
-
-export async function acceptInvitation(token: string) {
-  const r = await api.post<Envelope<unknown>>("/chamas/invitations/accept", { token });
-  return r.data.data;
-}
-
-export async function declineInvitation(token: string) {
-  const r = await api.post<Envelope<unknown>>("/chamas/invitations/decline", { token });
-  return r.data.data;
-}
-
-export async function listJoinRequests(chamaId: string) {
-  const r = await api.get<Envelope<unknown[]>>(`/chamas/${chamaId}/join-requests`);
-  return r.data.data;
-}
-
-export async function decideJoinRequest(chamaId: string, requestId: string, decision: "approved" | "rejected", reason?: string) {
-  const r = await api.post<Envelope<unknown>>(`/chamas/${chamaId}/join-requests/${requestId}/decision`, { decision, reason });
-  return r.data.data;
-}
-
-export async function donate(chamaId: string, data: {
-  amount: number;
-  message?: string;
-  isAnonymous?: boolean;
-  donorName?: string;
-  donorEmail?: string;
-  donorPhone?: string;
-  paymentMethod?: "mpesa" | "bank" | "card" | "cash";
-}) {
-  const r = await api.post<Envelope<unknown>>(`/chamas/${chamaId}/donate`, data);
-  return r.data.data;
-}
-
-export async function listDonations(chamaId: string, page = 1, pageSize = 20) {
-  const r = await api.get<Envelope<unknown[]>>(`/chamas/${chamaId}/donations`, { params: { page, pageSize } });
-  return { items: r.data.data, meta: r.data.meta };
-}
-
-// ── Rule Engine ──────────────────────────────────────────────────
-export interface ChamaRuleVersion {
-  id: string;
-  chamaId: string;
-  version: number;
-  ruleDoc: unknown;
-  sourceText: string | null;
-  compiledBy: "human" | "claude-sonnet-4-5" | string;
-  effectiveAt: string;
-  supersededAt: string | null;
-  createdById: string | null;
-  approvedByIds: string[];
-  hash: string;
-  createdAt: string;
-}
-
-export async function listRuleVersions(chamaId: string) {
-  const r = await api.get<Envelope<ChamaRuleVersion[]>>(`/chamas/${chamaId}/rules`);
-  return r.data.data;
-}
-
-export async function getActiveRules(chamaId: string) {
-  const r = await api.get<Envelope<ChamaRuleVersion | null>>(`/chamas/${chamaId}/rules/active`);
-  return r.data.data;
-}
-
-export async function getRuleVersion(chamaId: string, version: number) {
-  const r = await api.get<Envelope<ChamaRuleVersion>>(`/chamas/${chamaId}/rules/${version}`);
-  return r.data.data;
-}
-
-export async function saveRuleVersion(chamaId: string, ruleDoc: unknown, sourceText?: string, extra?: { approvedByIds?: string[]; emergency?: boolean; reason?: string; compiledBy?: string }) {
-  const r = await api.post<Envelope<ChamaRuleVersion>>(`/chamas/${chamaId}/rules`, {
-    ruleDoc,
-    sourceText,
-    compiledBy: extra?.compiledBy ?? "human",
-    approvedByIds: extra?.approvedByIds ?? [],
-    ...(extra?.emergency ? { emergency: true, reason: extra.reason } : {}),
-  });
-  return r.data.data;
-}
-
-export interface RuleGuardStatus {
-  isOfficer: boolean;
-  officerCount: number;
-  requiredSignatures: number;
-  cooldownEndsAt: string | null;
-  inCooldown: boolean;
-}
-
-export async function getRuleGuardStatus(chamaId: string): Promise<RuleGuardStatus> {
-  const r = await api.get<Envelope<RuleGuardStatus>>(`/chamas/${chamaId}/rules/guard`);
+export async function joinChama(code: string) {
+  const r = await api.post<Envelope<ChamaDTO>>("/chamas/join", { code });
   return r.data.data;
 }
