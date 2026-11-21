@@ -1,11 +1,16 @@
 /**
  * Environment flags shared across the app.
  *
- * USE_MOCKS is the single toggle that lets the frontend run without a
- * backend. In dev it defaults to `false` so the app talks to a real backend.
- * Set `VITE_USE_MOCKS=true` to run with mock data (useful for UI development
- * or when the backend isn't available).
+ * Mock data is OFF by default and can never be enabled in a production
+ * build: it requires BOTH a Vite dev server (`import.meta.env.DEV`) and an
+ * explicit `VITE_USE_MOCKS=true`. The production bundle always talks to the
+ * real backend.
  */
-const _mocksEnv = import.meta.env.VITE_USE_MOCKS;
-export const USE_MOCKS: boolean =
-  _mocksEnv === "true";
+export function resolveUseMocks(env: { DEV?: boolean; VITE_USE_MOCKS?: string }): boolean {
+  return env.DEV === true && env.VITE_USE_MOCKS === "true";
+}
+
+export const USE_MOCKS: boolean = resolveUseMocks({
+  DEV: import.meta.env.DEV,
+  VITE_USE_MOCKS: import.meta.env.VITE_USE_MOCKS,
+});

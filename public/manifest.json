@@ -1,7 +1,7 @@
 {
   "name": "Pamoja Wealth",
   "short_name": "Pamoja",
-  "description": "The modern platform for chamas, savings groups, and investment clubs across East Africa. Track contributions, manage loans, grow investments, and run meetings — all in one place.",
+  "description": "Record-keeping for chamas in Kenya: contributions, loan register, meetings and statements. Your money stays in your chama's own M-Pesa or bank account.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

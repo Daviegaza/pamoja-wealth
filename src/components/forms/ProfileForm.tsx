@@ -18,8 +18,8 @@ export function ProfileForm() {
 
   const onSubmit = async (data: ProfileFormValues) => {
     try {
-      await api.patch("/users/me", data);
-      if (user) setUser({ ...user, fullName: data.fullName, email: data.email, phone: data.phone, location: data.location });
+      await api.patch("/users/me", { fullName: data.fullName, location: data.location, bio: data.bio || undefined });
+      if (user) setUser({ ...user, fullName: data.fullName, location: data.location });
       toast.success("Profile updated successfully.");
     } catch (err) {
       const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
@@ -31,8 +31,8 @@ export function ProfileForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input label="Full name" error={errors.fullName?.message} {...register("fullName")} />
-        <Input label="Email address" type="email" error={errors.email?.message} {...register("email")} />
-        <Input label="Phone number" error={errors.phone?.message} {...register("phone")} />
+        <Input label="Email address" type="email" readOnly hint="Contact support to change your email." error={errors.email?.message} {...register("email")} />
+        <Input label="Phone number" readOnly hint="Contact support to change your phone number." error={errors.phone?.message} {...register("phone")} />
         <Input label="Location" error={errors.location?.message} {...register("location")} />
       </div>
       <Input label="Bio" placeholder="Tell us about yourself" error={errors.bio?.message} {...register("bio")} />

@@ -12,7 +12,6 @@ export interface AuthUser {
   isActive: boolean;
   twoFactorEnabled: boolean;
   lastLoginAt: string | null;
-  nationalId: string | null;
   createdAt: string;
 }
 
@@ -48,8 +47,12 @@ export async function refreshTokens(refreshToken: string) {
   return r.data.data;
 }
 
-export async function logout() {
-  await api.post("/auth/logout").catch(() => undefined);
+/** Revoke the session server-side. Tokens are passed explicitly because the caller clears storage. */
+export async function logout(accessToken: string | null, refreshToken: string | null) {
+  if (!accessToken) return;
+  await api
+    .post("/auth/logout", refreshToken ? { refreshToken } : {}, { headers: { Authorization: `Bearer ${accessToken}` } })
+    .catch(() => undefined);
 }
 
 export async function getMe() {

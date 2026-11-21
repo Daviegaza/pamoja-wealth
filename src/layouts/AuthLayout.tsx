@@ -1,12 +1,12 @@
 import { Outlet, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ShieldCheck, TrendingUp, Users, Sparkles } from "lucide-react";
+import { CheckCircle2, FileText, ShieldCheck, Users } from "lucide-react";
 
 const TRUST_ITEMS = [
-  { icon: Users, text: "Built for 1,000+ chama members" },
-  { icon: TrendingUp, text: "KES 2.4B+ tracked (simulated portfolio)" },
-  { icon: ShieldCheck, text: "Encrypted & secure platform" },
-  { icon: Sparkles, text: "AI-powered financial insights" },
+  { icon: ShieldCheck, text: "We never hold your chama's money" },
+  { icon: CheckCircle2, text: "Members confirm every recorded payment" },
+  { icon: FileText, text: "Statements anyone in the chama can download" },
+  { icon: Users, text: "Roles for chairperson, treasurer and secretary" },
 ];
 
 export function AuthLayout() {
@@ -43,10 +43,10 @@ export function AuthLayout() {
 
         <div className="relative">
           <h2 className="text-3xl lg:text-4xl font-bold leading-tight max-w-md tracking-tight">
-            Building Wealth Together, one chama at a time.
+            Your chama's books, shared with every member.
           </h2>
           <p className="mt-4 text-brand-100/90 max-w-md text-lg leading-relaxed">
-            Manage contributions, loans, investments and meetings — all from a single trusted platform.
+            Record contributions, loans and meetings. Your money stays in your chama's own M-Pesa or bank account.
           </p>
 
           <div className="mt-10 space-y-4">

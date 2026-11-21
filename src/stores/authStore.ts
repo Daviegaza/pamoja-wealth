@@ -1,9 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { User } from "@/types";
-import { getCurrentUser } from "@/mock";
 import * as authApi from "@/api/auth";
-import { USE_MOCKS } from "@/lib/env";
+import { queryClient } from "@/lib/queryClient";
+import { useChamaStore } from "@/stores/chamaStore";
 
 interface RegisterPayload {
   fullName: string;
@@ -34,14 +34,11 @@ function mapAuthUserToUser(u: authApi.AuthUser): User {
     fullName: u.fullName,
     email: u.email,
     phone: u.phone,
-    avatarUrl: u.avatarUrl || `https://api.dicebear.com/9.x/avataaars/svg?seed=${u.email}`,
-    role: "member",
-    permissions: ["view_dashboard"],
+    avatarUrl: u.avatarUrl ?? "",
     createdAt: u.createdAt,
     isVerified: u.isVerified,
     twoFactorEnabled: u.twoFactorEnabled,
     lastLoginAt: u.lastLoginAt || u.createdAt,
-    nationalId: u.nationalId || undefined,
     location: u.location || "",
   };
 }
@@ -60,12 +57,6 @@ export const useAuthStore = create<AuthState>()(
       login: async (email, password) => {
         set({ isLoading: true, error: null });
         try {
-          if (USE_MOCKS) {
-            await new Promise((r) => setTimeout(r, 400));
-            const mockUser = getCurrentUser();
-            set({ user: mockUser, isAuthenticated: true, isLoading: false });
-            return;
-          }
           const res = await authApi.login(email, password);
           localStorage.setItem("pamoja_token", res.accessToken);
           localStorage.setItem("pamoja_refresh", res.refreshToken);
@@ -86,12 +77,6 @@ export const useAuthStore = create<AuthState>()(
       register: async ({ fullName, email, phone, username, password }) => {
         set({ isLoading: true, error: null });
         try {
-          if (USE_MOCKS) {
-            await new Promise((r) => setTimeout(r, 400));
-            const base = getCurrentUser();
-            set({ user: { ...base, fullName, email, phone }, isAuthenticated: true, isLoading: false });
-            return;
-          }
           const res = await authApi.register({ fullName, email, phone, username, password });
           localStorage.setItem("pamoja_token", res.accessToken);
           localStorage.setItem("pamoja_refresh", res.refreshToken);
@@ -110,10 +95,15 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        const access = localStorage.getItem("pamoja_token");
+        const refresh = localStorage.getItem("pamoja_refresh");
         localStorage.removeItem("pamoja_token");
         localStorage.removeItem("pamoja_refresh");
         localStorage.removeItem("pamoja-auth");
-        if (!USE_MOCKS) authApi.logout().catch(() => undefined);
+        authApi.logout(access, refresh).catch(() => undefined);
+        // Do not leave one user's chama records cached for the next person on this device.
+        queryClient.clear();
+        useChamaStore.getState().setActiveChama(null);
         set({
           user: null,
           accessToken: null,

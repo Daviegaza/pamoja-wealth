@@ -1,103 +1,66 @@
-import { motion } from "framer-motion";
-import { Shield } from "lucide-react";
+import { LegalLayout } from "./LegalLayout";
 
 export default function PrivacyPage() {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mx-auto max-w-3xl px-6 py-16 lg:py-24 space-y-10"
-    >
-      <section className="space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-500/[0.08] text-brand-600">
-            <Shield className="h-5 w-5" />
-          </div>
-          <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Privacy Policy</h1>
-        </div>
-        <p className="text-sm text-gray-400">Last updated: June 2026</p>
+    <LegalLayout title="Privacy Notice" updated="November 2026">
+      <section>
+        <h2>1. Who is responsible for your data</h2>
+        <p>
+          We handle personal data in line with Kenya&apos;s Data Protection Act, 2019. For the records a chama keeps about its
+          members (contributions, loans, meeting minutes), the chama — acting through its officers — is the <strong>data
+          controller</strong>, and Pamoja Wealth processes that data on the chama&apos;s behalf as a <strong>data processor</strong>.
+          For your account itself (login, contact details, subscription billing), Pamoja Wealth is the data controller.
+        </p>
       </section>
-
-      <section className="space-y-6 text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-        <div className="space-y-3">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">1. Information We Collect</h2>
-          <p>
-            Pamoja Wealth collects information you provide when creating an account, including your
-            name, email address, phone number, and location. When you use the platform, we also
-            collect transaction data, contribution records, loan applications, investment activity,
-            meeting participation, and voting history to provide our services.
-          </p>
-          <p>
-            We do not collect sensitive financial credentials such as bank passwords, M-Pesa PINs,
-            or full bank account numbers. Payment processing is handled by trusted third-party
-            providers and we never store your complete payment instrument details.
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">2. How We Use Your Data</h2>
-          <p>Your data is used exclusively to:</p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>Provide and improve the Pamoja Wealth platform</li>
-            <li>Process contributions, loans, and investment transactions</li>
-            <li>Generate reports and analytics for your chama</li>
-            <li>Send notifications about chama activity, meetings, and votes</li>
-            <li>Ensure platform security and prevent fraud</li>
-          </ul>
-          <p>
-            We will never sell your personal data to third parties. Your financial data belongs to
-            you and your chama — we process it only on your behalf.
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">3. Data Sharing</h2>
-          <p>
-            Within your chama, transaction data and contribution records are visible to other
-            members as configured by your group&apos;s privacy settings. Group treasurers and
-            chairpersons have access to financial reports needed for their roles. You control
-            what personal information is visible to other members through your profile settings.
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">4. Data Security</h2>
-          <p>
-            We implement industry-standard security measures including encryption in transit (TLS),
-            encryption at rest, access controls, and regular security audits. However, no electronic
-            transmission or storage is 100% secure. We continuously work to protect your data but
-            cannot guarantee absolute security.
-          </p>
-          <p>
-            Note: As this is currently a demonstration platform, production-grade security
-            infrastructure (HSMs, KMS, SIEM, dedicated WAF) will be deployed before handling
-            real financial data.
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">5. Your Rights</h2>
-          <p>You have the right to:</p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>Access and download all data associated with your account</li>
-            <li>Correct inaccurate personal information</li>
-            <li>Delete your account and associated data</li>
-            <li>Export your transaction history</li>
-            <li>Withdraw consent for non-essential data processing</li>
-          </ul>
-        </div>
-
-        <div className="space-y-3">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">6. Contact</h2>
-          <p>
-            Questions about this Privacy Policy? Contact us at{" "}
-            <a href="mailto:privacy@pamojawealth.com" className="text-brand-600 hover:text-brand-700">
-              privacy@pamojawealth.com
-            </a>
-            .
-          </p>
-        </div>
+      <section>
+        <h2>2. What we collect</h2>
+        <ul>
+          <li>Account details: name, email address, phone number, password (stored hashed).</li>
+          <li>Chama records entered by officers: contribution amounts and dates, payment method, optional M-Pesa receipt codes, loan and repayment records, meeting details and minutes.</li>
+          <li>Technical data needed to keep the Service secure, such as IP address and device information in audit logs.</li>
+        </ul>
+        <p>
+          We never ask for or store M-Pesa PINs, bank passwords or card numbers. Subscription payments are processed by
+          Flutterwave or Paystack, who handle card and mobile-money details directly.
+        </p>
       </section>
-    </motion.div>
+      <section>
+        <h2>3. How we use it</h2>
+        <ul>
+          <li>To provide the record-keeping features your chama uses.</li>
+          <li>To send notifications you need, such as a request to confirm a contribution.</li>
+          <li>To secure the Service, keep an audit log and prevent misuse.</li>
+          <li>To bill your chama&apos;s subscription.</li>
+        </ul>
+        <p>We do not sell personal data and do not use it for advertising.</p>
+      </section>
+      <section>
+        <h2>4. Who can see it</h2>
+        <p>
+          Within a chama, officers see the records and member contact details needed to run the chama; members see their own
+          records and chama-wide summaries. We share data with service providers (hosting, email/SMS, payment processors) only as
+          needed to run the Service, under contract.
+        </p>
+      </section>
+      <section>
+        <h2>5. Your rights</h2>
+        <p>
+          You may ask to access, correct or delete your personal data, or object to its processing. Requests about a chama&apos;s
+          records should go to that chama&apos;s officers first; we will help them respond. Chama financial records may need to be
+          kept for a period even after a member leaves, so the chama&apos;s books stay complete.
+        </p>
+      </section>
+      <section>
+        <h2>6. Retention and security</h2>
+        <p>
+          We keep data for as long as the chama&apos;s account is active and as required by law, then delete or anonymise it. Data
+          is encrypted in transit, access is restricted by role, and every change to chama records is logged.
+        </p>
+      </section>
+      <section>
+        <h2>7. Contact</h2>
+        <p>Questions or complaints can be sent through the Help page. You may also complain to the Office of the Data Protection Commissioner.</p>
+      </section>
+    </LegalLayout>
   );
 }
